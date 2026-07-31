@@ -1,0 +1,10 @@
+{
+  "name": "Podcast Map & Secret CRM",
+  "description": "Global podcast discovery map with user suggestions and a secret admin CRM pipeline with Kanban board.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

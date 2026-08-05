@@ -347,50 +347,78 @@ export async function seedPocketBaseDirectly(
  * Fetch all podcasts from PocketBase
  */
 export async function fetchPodcastsFromPB(): Promise<Podcast[] | null> {
+  const creds = getPbCredentials();
+  const baseUrl = creds.url.replace(/\/+$/, '');
+
+  let records: any[] = [];
   try {
-    await authenticateAdmin();
-    const records = await pb.collection('podcasts').getFullList({
+    // 1. Try public read via SDK
+    pb.baseUrl = baseUrl;
+    records = await pb.collection('podcasts').getFullList({
       sort: '-created',
+      requestKey: null,
     });
-
-    if (!records || records.length === 0) {
-      return null;
+  } catch (err1) {
+    // 2. Try direct fetch API call without SDK overhead
+    try {
+      const directRes = await fetch(`${baseUrl}/api/collections/podcasts/records?sort=-created&perPage=500`, {
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      if (directRes.ok) {
+        const data = await directRes.json();
+        records = data.items || [];
+      } else {
+        throw new Error(`Direct fetch status ${directRes.status}`);
+      }
+    } catch (err2) {
+      // 3. Authenticate as admin and retry via SDK
+      try {
+        await authenticateAdmin();
+        records = await pb.collection('podcasts').getFullList({
+          sort: '-created',
+          requestKey: null,
+        });
+      } catch (err3) {
+        console.warn('Failed to fetch podcasts from PocketBase:', err3);
+        return null;
+      }
     }
+  }
 
-    return records.map((r: any) => ({
-      id: r.original_id || r.id,
-      name: r.name || '',
-      description: r.description || '',
-      youtubeUrl: r.youtubeUrl || '',
-      youtubeChannelId: r.youtubeChannelId || '',
-      coverImage: r.coverImage || '',
-      websiteUrl: r.websiteUrl || undefined,
-      country: r.country || '',
-      state: r.state || '',
-      city: r.city || '',
-      latitude: Number(r.latitude) || 0,
-      longitude: Number(r.longitude) || 0,
-      language: r.language || '',
-      niche: r.niche || '',
-      entityType: r.entityType as any,
-      studioType: r.studioType as any,
-      hourlyRate: r.hourlyRate || undefined,
-      roomsCount: r.roomsCount ? Number(r.roomsCount) : undefined,
-      studioEquipment: Array.isArray(r.studioEquipment) ? r.studioEquipment : undefined,
-      studioServices: Array.isArray(r.studioServices) ? r.studioServices : undefined,
-      producers: Array.isArray(r.producers) ? r.producers : [],
-      hosts: Array.isArray(r.hosts) ? r.hosts : [],
-      stage: r.stage || 'notknow',
-      notes: Array.isArray(r.notes) ? r.notes : [],
-      rating: r.rating ? Number(r.rating) : undefined,
-      estimatedAudience: r.estimatedAudience || '',
-      createdAt: r.created || new Date().toISOString(),
-      updatedAt: r.updated || new Date().toISOString(),
-    }));
-  } catch (err) {
-    console.warn('Failed to fetch podcasts from PocketBase, using local fallback:', err);
+  if (!records || records.length === 0) {
     return null;
   }
+
+  return records.map((r: any) => ({
+    id: r.original_id || r.id,
+    name: r.name || '',
+    description: r.description || '',
+    youtubeUrl: r.youtubeUrl || '',
+    youtubeChannelId: r.youtubeChannelId || '',
+    coverImage: r.coverImage || '',
+    websiteUrl: r.websiteUrl || undefined,
+    country: r.country || '',
+    state: r.state || '',
+    city: r.city || '',
+    latitude: Number(r.latitude) || 0,
+    longitude: Number(r.longitude) || 0,
+    language: r.language || '',
+    niche: r.niche || '',
+    entityType: r.entityType as any,
+    studioType: r.studioType as any,
+    hourlyRate: r.hourlyRate || undefined,
+    roomsCount: r.roomsCount ? Number(r.roomsCount) : undefined,
+    studioEquipment: Array.isArray(r.studioEquipment) ? r.studioEquipment : undefined,
+    studioServices: Array.isArray(r.studioServices) ? r.studioServices : undefined,
+    producers: Array.isArray(r.producers) ? r.producers : [],
+    hosts: Array.isArray(r.hosts) ? r.hosts : [],
+    stage: r.stage || 'notknow',
+    notes: Array.isArray(r.notes) ? r.notes : [],
+    rating: r.rating ? Number(r.rating) : undefined,
+    estimatedAudience: r.estimatedAudience || '',
+    createdAt: r.created || new Date().toISOString(),
+    updatedAt: r.updated || new Date().toISOString(),
+  }));
 }
 
 /**
@@ -485,44 +513,69 @@ export async function deletePodcastFromPB(podcastId: string): Promise<boolean> {
  * Fetch suggestions from PocketBase
  */
 export async function fetchSuggestionsFromPB(): Promise<PodcastSuggestion[] | null> {
+  const creds = getPbCredentials();
+  const baseUrl = creds.url.replace(/\/+$/, '');
+
+  let records: any[] = [];
   try {
-    await authenticateAdmin();
-    const records = await pb.collection('suggestions').getFullList({
+    pb.baseUrl = baseUrl;
+    records = await pb.collection('suggestions').getFullList({
       sort: '-created',
+      requestKey: null,
     });
-
-    if (!records || records.length === 0) {
-      return null;
+  } catch (err1) {
+    try {
+      const directRes = await fetch(`${baseUrl}/api/collections/suggestions/records?sort=-created&perPage=500`, {
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      if (directRes.ok) {
+        const data = await directRes.json();
+        records = data.items || [];
+      } else {
+        throw new Error(`Direct fetch status ${directRes.status}`);
+      }
+    } catch (err2) {
+      try {
+        await authenticateAdmin();
+        records = await pb.collection('suggestions').getFullList({
+          sort: '-created',
+          requestKey: null,
+        });
+      } catch (err3) {
+        console.warn('Failed to fetch suggestions from PocketBase:', err3);
+        return null;
+      }
     }
+  }
 
-    return records.map((r: any) => ({
-      id: r.original_id || r.id,
-      podcastName: r.name || r.podcastName || '',
-      youtubeUrl: r.youtubeUrl || '',
-      instagramUrl: r.instagramUrl || '',
-      tiktokUrl: r.tiktokUrl || '',
-      studioId: r.studioId || undefined,
-      studioName: r.studioName || undefined,
-      submitterNote: r.description || r.submitterNote || '',
-      country: r.country || '',
-      state: r.state || '',
-      city: r.city || '',
-      language: r.language || '',
-      niche: r.niche || '',
-      entityType: r.entityType as any,
-      studioType: r.studioType as any,
-      websiteUrl: r.websiteUrl || undefined,
-      equipmentSummary: r.equipmentSummary || undefined,
-      producers: Array.isArray(r.producers) ? r.producers : [],
-      hosts: Array.isArray(r.hosts) ? r.hosts : [],
-      submittedByEmail: r.submittedByEmail || '',
-      status: r.status || 'pending',
-      createdAt: r.createdAt || r.created || new Date().toISOString(),
-    }));
-  } catch (err) {
-    console.warn('Failed to fetch suggestions from PocketBase, using local fallback:', err);
+  if (!records || records.length === 0) {
     return null;
   }
+
+  return records.map((r: any) => ({
+    id: r.original_id || r.id,
+    podcastName: r.name || r.podcastName || '',
+    youtubeUrl: r.youtubeUrl || '',
+    instagramUrl: r.instagramUrl || '',
+    tiktokUrl: r.tiktokUrl || '',
+    studioId: r.studioId || undefined,
+    studioName: r.studioName || undefined,
+    submitterNote: r.description || r.submitterNote || '',
+    country: r.country || '',
+    state: r.state || '',
+    city: r.city || '',
+    language: r.language || '',
+    niche: r.niche || '',
+    entityType: r.entityType as any,
+    studioType: r.studioType as any,
+    websiteUrl: r.websiteUrl || undefined,
+    equipmentSummary: r.equipmentSummary || undefined,
+    producers: Array.isArray(r.producers) ? r.producers : [],
+    hosts: Array.isArray(r.hosts) ? r.hosts : [],
+    submittedByEmail: r.submittedByEmail || '',
+    status: r.status || 'pending',
+    createdAt: r.createdAt || r.created || new Date().toISOString(),
+  }));
 }
 
 /**

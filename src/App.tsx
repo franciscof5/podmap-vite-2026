@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   Podcast,
   PodcastSuggestion,
@@ -13,9 +14,16 @@ import {
   saveSuggestions,
   getAdminPin,
   setAdminPin,
-  resetToSeedData,
+  resetToSeedDataAndSyncPB,
+  loadPodcastsWithPB,
+  loadSuggestionsWithPB,
+  saveSinglePodcast,
+  deleteSinglePodcast,
+  saveSingleSuggestion,
+  deleteSingleSuggestion,
 } from './services/storage';
-import { calculateDistanceKm, KNOWN_CITY_COORDINATES } from './utils/geo';
+import { savePodcastToPB, saveSuggestionToPB, seedPocketBaseDirectly } from './services/pocketbase';
+import { calculateDistanceKm, KNOWN_CITY_COORDINATES, resolveGeocode } from './utils/geo';
 
 // Components
 import { Navbar } from './components/Navbar';
@@ -28,6 +36,7 @@ import { CRMKanban } from './components/Admin/CRMKanban';
 import { PodcastFormModal } from './components/Admin/PodcastFormModal';
 import { SuggestionsInboxModal } from './components/Admin/SuggestionsInboxModal';
 import { CRMStats } from './components/Admin/CRMStats';
+import { PbCredentialsModal } from './components/Admin/PbCredentialsModal';
 
 export default function App() {
   // Main Data States
@@ -39,27 +48,39 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<'map' | 'kanban'>('map');
   const [selectedPodcastId, setSelectedPodcastId] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  // User Location State initialized with default location (São Paulo / Brazil center)
+  const [userLocation, setUserLocation] = useState<UserLocation | null>({
+    latitude: -23.5505,
+    longitude: -46.6333,
+    cityName: 'São Paulo',
+    countryName: 'Brazil',
+    isCustomOrDetected: false,
+  });
 
   // Modals Visibility
   const [isAdminAuthOpen, setIsAdminAuthOpen] = useState<boolean>(false);
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState<boolean>(false);
   const [isAddPodcastModalOpen, setIsAddPodcastModalOpen] = useState<boolean>(false);
   const [isSuggestionsInboxOpen, setIsSuggestionsInboxOpen] = useState<boolean>(false);
+  const [isPbCredentialsModalOpen, setIsPbCredentialsModalOpen] = useState<boolean>(false);
   const [editingPodcast, setEditingPodcast] = useState<Podcast | null>(null);
   const [initialStageForAdd, setInitialStageForAdd] = useState<CRMStage>('notknow');
+  const [pbSyncMessage, setPbSyncMessage] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
+  const [isPbSeeded, setIsPbSeeded] = useState<boolean>(false);
 
-  // Filter & Search State
+  // Filter & Search State - default to 'distance' (Near Me)
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
+    entityType: 'all',
+    studioType: '',
     niche: '',
     language: '',
     country: '',
     stage: '',
-    sortBy: 'newest',
+    sortBy: 'distance',
   });
 
-  // Initial Load from Storage & Request Geolocation
+  // Initial Load from Storage & PocketBase Sync & Request Geolocation
   useEffect(() => {
     const loadedPodcasts = getStoredPodcasts();
     const loadedSuggestions = getStoredSuggestions();
@@ -68,6 +89,43 @@ export default function App() {
     setPodcasts(loadedPodcasts);
     setSuggestions(loadedSuggestions);
     setAdminPinState(loadedPin);
+
+    // Sync with PocketBase self-hosted backend
+    loadPodcastsWithPB().then(async ({ podcasts: pbPodcasts, isFromPB }) => {
+      const rawList = isFromPB && pbPodcasts && pbPodcasts.length > 0 ? pbPodcasts : loadedPodcasts;
+      
+      // Auto-fix coordinates if any podcast has mismatched or Austin default coordinates for a non-Austin city (e.g. Itapetininga)
+      let needsStateUpdate = false;
+      const verifiedList = await Promise.all(
+        rawList.map(async (p) => {
+          const isAustinDefault = Math.abs(p.latitude - 30.2672) < 0.001 && Math.abs(p.longitude - (-97.7431)) < 0.001;
+          const isZero = p.latitude === 0 && p.longitude === 0;
+
+          if ((isAustinDefault || isZero) && p.city && p.city.toLowerCase() !== 'austin') {
+            const resolved = await resolveGeocode(p.city, p.state, p.country);
+            if (resolved.lat !== p.latitude || resolved.lng !== p.longitude) {
+              needsStateUpdate = true;
+              const updatedP = { ...p, latitude: resolved.lat, longitude: resolved.lng };
+              savePodcastToPB(updatedP).catch(() => {});
+              return updatedP;
+            }
+          }
+          return p;
+        })
+      );
+
+      setPodcasts(verifiedList);
+      if (needsStateUpdate) {
+        savePodcasts(verifiedList);
+      }
+      setIsPbSeeded(isFromPB && pbPodcasts.length > 0);
+    });
+
+    loadSuggestionsWithPB().then((pbSuggestions) => {
+      if (pbSuggestions && pbSuggestions.length > 0) {
+        setSuggestions(pbSuggestions);
+      }
+    });
 
     // Request Geolocation
     requestUserLocation();
@@ -119,23 +177,19 @@ export default function App() {
 
   // Add / Edit Podcast
   const handleSavePodcast = (podcast: Podcast) => {
-    const exists = podcasts.some((p) => p.id === podcast.id);
-    let updated: Podcast[];
-    if (exists) {
-      updated = podcasts.map((p) => (p.id === podcast.id ? podcast : p));
-    } else {
-      updated = [podcast, ...podcasts];
-    }
-    handleUpdatePodcasts(updated);
+    saveSinglePodcast(podcast, podcasts).then((updated) => {
+      setPodcasts(updated);
+    });
   };
 
   // Change CRM Pipeline Stage
   const handleStageChange = (id: string, newStage: CRMStage) => {
+    let targetPodcast: Podcast | null = null;
     const updated = podcasts.map((p) => {
       if (p.id === id) {
         const newNotes = p.notes || [];
         const noteText = `Stage updated to: ${newStage.toUpperCase()}`;
-        return {
+        const updatedItem = {
           ...p,
           stage: newStage,
           updatedAt: new Date().toISOString(),
@@ -149,18 +203,24 @@ export default function App() {
             ...newNotes,
           ],
         };
+        targetPodcast = updatedItem;
+        return updatedItem;
       }
       return p;
     });
     handleUpdatePodcasts(updated);
+    if (targetPodcast) {
+      savePodcastToPB(targetPodcast);
+    }
   };
 
   // Add Note to Podcast
   const handleAddNote = (podcastId: string, text: string) => {
+    let targetPodcast: Podcast | null = null;
     const updated = podcasts.map((p) => {
       if (p.id === podcastId) {
         const existingNotes = p.notes || [];
-        return {
+        const updatedItem = {
           ...p,
           notes: [
             {
@@ -172,30 +232,42 @@ export default function App() {
             ...existingNotes,
           ],
         };
+        targetPodcast = updatedItem;
+        return updatedItem;
       }
       return p;
     });
     handleUpdatePodcasts(updated);
+    if (targetPodcast) {
+      savePodcastToPB(targetPodcast);
+    }
   };
 
   // Delete Note
   const handleDeleteNote = (podcastId: string, noteId: string) => {
+    let targetPodcast: Podcast | null = null;
     const updated = podcasts.map((p) => {
       if (p.id === podcastId) {
-        return {
+        const updatedItem = {
           ...p,
           notes: (p.notes || []).filter((n) => n.id !== noteId),
         };
+        targetPodcast = updatedItem;
+        return updatedItem;
       }
       return p;
     });
     handleUpdatePodcasts(updated);
+    if (targetPodcast) {
+      savePodcastToPB(targetPodcast);
+    }
   };
 
   // Delete Podcast
   const handleDeletePodcast = (id: string) => {
-    const updated = podcasts.filter((p) => p.id !== id);
-    handleUpdatePodcasts(updated);
+    deleteSinglePodcast(id, podcasts).then((updated) => {
+      setPodcasts(updated);
+    });
     if (selectedPodcastId === id) setSelectedPodcastId(null);
   };
 
@@ -209,19 +281,26 @@ export default function App() {
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
-    handleUpdateSuggestions([newSug, ...suggestions]);
+    saveSingleSuggestion(newSug, suggestions).then((updated) => {
+      setSuggestions(updated);
+    });
   };
 
+
   // Approve Suggestion
-  const handleApproveSuggestion = (suggestion: PodcastSuggestion) => {
-    // Open Add Podcast form pre-populated with suggestion data!
-    const cityCoord = KNOWN_CITY_COORDINATES[suggestion.city] || { lat: 30.2672, lng: -97.7431 };
+  const handleApproveSuggestion = async (suggestion: PodcastSuggestion) => {
+    // Open Add Podcast form pre-populated with suggestion data and REAL geocode!
+    const cityCoord = await resolveGeocode(suggestion.city, suggestion.state, suggestion.country);
     
     setEditingPodcast({
       id: `pod-${Date.now()}`,
       name: suggestion.podcastName,
       description: suggestion.submitterNote || 'User suggested podcast',
       youtubeUrl: suggestion.youtubeUrl,
+      instagramUrl: suggestion.instagramUrl,
+      tiktokUrl: suggestion.tiktokUrl,
+      studioId: suggestion.studioId,
+      studioName: suggestion.studioName,
       coverImage: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=400&auto=format&fit=crop&q=80',
       country: suggestion.country,
       state: suggestion.state,
@@ -239,46 +318,95 @@ export default function App() {
     });
 
     // Mark suggestion as approved
-    const updatedSug = suggestions.map((s) =>
-      s.id === suggestion.id ? { ...s, status: 'approved' as const } : s
-    );
+    let approvedSugItem: PodcastSuggestion | null = null;
+    const updatedSug = suggestions.map((s) => {
+      if (s.id === suggestion.id) {
+        const item = { ...s, status: 'approved' as const };
+        approvedSugItem = item;
+        return item;
+      }
+      return s;
+    });
     handleUpdateSuggestions(updatedSug);
+    if (approvedSugItem) saveSuggestionToPB(approvedSugItem);
     setIsSuggestionsInboxOpen(false);
     setIsAddPodcastModalOpen(true);
   };
 
   // Reject Suggestion
   const handleRejectSuggestion = (id: string) => {
-    const updatedSug = suggestions.map((s) =>
-      s.id === id ? { ...s, status: 'rejected' as const } : s
-    );
+    let rejectedSugItem: PodcastSuggestion | null = null;
+    const updatedSug = suggestions.map((s) => {
+      if (s.id === id) {
+        const item = { ...s, status: 'rejected' as const };
+        rejectedSugItem = item;
+        return item;
+      }
+      return s;
+    });
     handleUpdateSuggestions(updatedSug);
+    if (rejectedSugItem) saveSuggestionToPB(rejectedSugItem);
   };
 
-  // Reset Data to Initial Seed
-  const handleResetData = () => {
-    if (confirm('Are you sure you want to reset all podcasts and CRM data to initial seed?')) {
-      const { podcasts: seedP, suggestions: seedS } = resetToSeedData();
-      setPodcasts(seedP);
-      setSuggestions(seedS);
-      setSelectedPodcastId(null);
+  // Reset Data to Initial Seed & Sync to PocketBase
+  const handleResetData = async () => {
+    setPbSyncMessage({ type: 'info', text: 'Connecting to PocketBase (pocket.f5sites.com.br) and seeding database...' });
+    
+    const { podcasts: seedP, suggestions: seedS, pbResult } = await resetToSeedDataAndSyncPB();
+    setPodcasts(seedP);
+    setSuggestions(seedS);
+    setSelectedPodcastId(null);
+
+    if (pbResult.success) {
+      setIsPbSeeded(true);
+      setPbSyncMessage({
+        type: 'success',
+        text: pbResult.message,
+      });
+    } else {
+      setPbSyncMessage({
+        type: 'error',
+        text: pbResult.message,
+      });
     }
+    setTimeout(() => setPbSyncMessage(null), 10000);
   };
 
   // Filter & Sort Computation
   const filteredPodcasts = useMemo(() => {
     return podcasts
       .filter((p) => {
+        // Entity Type Filter ('all' | 'podcast' | 'studio')
+        if (filters.entityType === 'podcast' && p.entityType === 'studio') return false;
+        if (filters.entityType === 'studio' && p.entityType !== 'studio') return false;
+
+        // Studio Type Filter
+        if (filters.studioType && p.studioType !== filters.studioType) return false;
+
         // Search Query Match
         if (filters.searchQuery.trim()) {
           const q = filters.searchQuery.toLowerCase();
           const matchName = p.name.toLowerCase().includes(q);
-          const matchNiche = p.niche.toLowerCase().includes(q);
-          const matchCity = p.city.toLowerCase().includes(q);
-          const matchCountry = p.country.toLowerCase().includes(q);
+          const matchDesc = (p.description || '').toLowerCase().includes(q);
+          const matchNiche = (p.niche || '').toLowerCase().includes(q);
+          const matchCity = (p.city || '').toLowerCase().includes(q);
+          const matchCountry = (p.country || '').toLowerCase().includes(q);
           const matchHost = p.hosts?.some((h) => h.name.toLowerCase().includes(q));
           const matchProducer = p.producers?.some((prod) => prod.name.toLowerCase().includes(q));
-          if (!matchName && !matchNiche && !matchCity && !matchCountry && !matchHost && !matchProducer) {
+          const matchEquip = p.studioEquipment?.some((eq) => eq.toLowerCase().includes(q));
+          const matchService = p.studioServices?.some((srv) => srv.toLowerCase().includes(q));
+
+          if (
+            !matchName &&
+            !matchDesc &&
+            !matchNiche &&
+            !matchCity &&
+            !matchCountry &&
+            !matchHost &&
+            !matchProducer &&
+            !matchEquip &&
+            !matchService
+          ) {
             return false;
           }
         }
@@ -343,11 +471,52 @@ export default function App() {
         searchQuery={filters.searchQuery}
         onSearchChange={(q) => setFilters((prev) => ({ ...prev, searchQuery: q }))}
         onResetData={handleResetData}
+        isPbSeeded={isPbSeeded}
       />
 
       {/* Main Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
+        {/* PocketBase Sync / Seed Status Toast Banner */}
+        {pbSyncMessage && (
+          <div
+            className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-xl transition animate-in fade-in ${
+              pbSyncMessage.type === 'info'
+                ? 'bg-amber-950/80 border-yellow-500/50 text-yellow-200'
+                : pbSyncMessage.type === 'success'
+                ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-100'
+                : 'bg-rose-950/90 border-rose-500/60 text-rose-100'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              {pbSyncMessage.type === 'info' ? (
+                <RefreshCw className="w-5 h-5 animate-spin text-yellow-400 shrink-0" />
+              ) : pbSyncMessage.type === 'success' ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+              )}
+              <div className="text-xs sm:text-sm font-semibold">{pbSyncMessage.text}</div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {pbSyncMessage.type === 'error' && (
+                <button
+                  onClick={() => setIsPbCredentialsModalOpen(true)}
+                  className="px-3 py-1 rounded-lg bg-yellow-400 text-black font-extrabold text-xs hover:bg-yellow-300 transition shadow"
+                >
+                  Configurar Credenciais PB
+                </button>
+              )}
+              <button
+                onClick={() => setPbSyncMessage(null)}
+                className="p-1.5 hover:bg-white/10 rounded-lg text-xs opacity-80 hover:opacity-100 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Admin CRM Metrics Dashboard (If Admin Mode Active) */}
         {isAdmin && <CRMStats podcasts={podcasts} />}
 
@@ -376,11 +545,13 @@ export default function App() {
               onResetFilters={() =>
                 setFilters({
                   searchQuery: '',
+                  entityType: 'all',
+                  studioType: '',
                   niche: '',
                   language: '',
                   country: '',
                   stage: '',
-                  sortBy: 'newest',
+                  sortBy: 'distance',
                 })
               }
               userLocation={userLocation}
@@ -440,6 +611,8 @@ export default function App() {
         isOpen={isSuggestModalOpen}
         onClose={() => setIsSuggestModalOpen(false)}
         onSubmitSuggestion={handleSubmitSuggestion}
+        existingStudios={podcasts.filter((p) => p.entityType === 'studio')}
+        allPodcasts={podcasts}
       />
 
       {/* Admin Authentication PIN Modal */}
@@ -458,6 +631,8 @@ export default function App() {
         onSave={handleSavePodcast}
         editingPodcast={editingPodcast}
         initialStage={initialStageForAdd}
+        existingStudios={podcasts.filter((p) => p.entityType === 'studio')}
+        allPodcasts={podcasts}
       />
 
       {/* Admin Suggestions Inbox Modal */}
@@ -467,6 +642,13 @@ export default function App() {
         suggestions={suggestions}
         onApprove={handleApproveSuggestion}
         onReject={handleRejectSuggestion}
+      />
+
+      {/* PocketBase Credentials Config Modal */}
+      <PbCredentialsModal
+        isOpen={isPbCredentialsModalOpen}
+        onClose={() => setIsPbCredentialsModalOpen(false)}
+        onSaved={handleResetData}
       />
 
     </div>

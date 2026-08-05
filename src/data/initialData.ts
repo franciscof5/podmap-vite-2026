@@ -337,6 +337,7 @@ export const INITIAL_PODCASTS: Podcast[] = [
     longitude: -122.4194,
     language: 'English',
     niche: 'Business & Entrepreneurship',
+    entityType: 'podcast',
     producers: [
       { id: 'prod-12', name: 'Nick', email: 'producers@allinpodcast.co', phone: '+1 (415) 555-0191', role: 'Lead Producer' },
     ],
@@ -352,6 +353,241 @@ export const INITIAL_PODCASTS: Podcast[] = [
     estimatedAudience: '850k subscribers',
     createdAt: '2026-02-10T10:00:00Z',
     updatedAt: '2026-07-12T14:20:00Z',
+  },
+  
+  // --- STUDIOS (PODCAST, TV, RADIO, HYBRID PRODUCTION HOUSES) ---
+  {
+    id: 'studio-1',
+    name: 'Sunset Broadcast & TV Studios',
+    description: 'Premier multi-stage television & video podcast production facility with 4K broadcast control rooms, motorized camera rigs, and custom set design.',
+    youtubeUrl: 'https://www.youtube.com/@sunsetbroadcaststudios',
+    youtubeChannelId: '@sunsetbroadcaststudios',
+    coverImage: 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=400&auto=format&fit=crop&q=80',
+    websiteUrl: 'https://sunsetbroadcaststudios.com',
+    country: 'USA',
+    state: 'California',
+    city: 'Los Angeles',
+    latitude: 34.0983,
+    longitude: -118.3267,
+    language: 'English',
+    niche: 'TV & Video Podcast Studio',
+    entityType: 'studio',
+    studioType: 'tv',
+    hourlyRate: '$250/hr',
+    roomsCount: 4,
+    studioEquipment: [
+      'Sony FX6 4K Cinema Cameras',
+      'Blackmagic Constellation 8K Switcher',
+      'Chroma Key Green Screen Stage',
+      'DMX Studio Lighting Grid',
+      'Acoustic Floating Room Isolation'
+    ],
+    studioServices: [
+      'Multi-Camera Live TV Production',
+      'Remote Satellite Feed',
+      'Post-Production & Editing',
+      'Set Construction & Branding',
+      'V.I.P Green Room Hospitality'
+    ],
+    producers: [
+      { id: 'sprod-1', name: 'Marcus Vance', email: 'booking@sunsetbroadcaststudios.com', phone: '+1 (323) 555-0188', role: 'Studio Operations Director' }
+    ],
+    hosts: [
+      { id: 'shost-1', name: 'Elena Rostova', email: 'elena@sunsetbroadcast.com', phone: '+1 (323) 555-0199', role: 'Head Broadcast Engineer' }
+    ],
+    stage: 'customer',
+    notes: [
+      { id: 'sn-1', date: '2026-07-18', author: 'Admin', text: 'Active client using our CRM for studio room rentals and agency bookings.' }
+    ],
+    rating: 5,
+    estimatedAudience: '400+ monthly recording sessions',
+    createdAt: '2026-03-01T10:00:00Z',
+    updatedAt: '2026-07-18T10:00:00Z',
+  },
+  {
+    id: 'studio-2',
+    name: 'Estúdios Flow & Media Hub',
+    description: 'Complexo de estúdios de gravação para podcasts, programas de TV e transmissões ao vivo com infraestrutura completa de som e iluminação.',
+    youtubeUrl: 'https://www.youtube.com/@estudioflow',
+    youtubeChannelId: '@estudioflow',
+    coverImage: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=400&auto=format&fit=crop&q=80',
+    websiteUrl: 'https://estudioflow.com.br',
+    country: 'Brazil',
+    state: 'São Paulo',
+    city: 'São Paulo',
+    latitude: -23.5615,
+    longitude: -46.6560,
+    language: 'Portuguese',
+    niche: 'Podcast & Hybrid TV Hub',
+    entityType: 'studio',
+    studioType: 'hybrid',
+    hourlyRate: 'R$ 350/h',
+    roomsCount: 3,
+    studioEquipment: [
+      'Microfones Shure SM7B',
+      'Mesa RødeCaster Pro II',
+      'Câmeras 4K Sony FX3',
+      'Painel de LED Configurável',
+      'Link de Fibra Dedicado 1Gbps'
+    ],
+    studioServices: [
+      'Transmissão ao Vivo no Youtube/Twitch',
+      'Cortes e Highlights Rápidos',
+      'Operação Técnica Completa',
+      'Gestão de Convidados'
+    ],
+    producers: [
+      { id: 'sprod-2', name: 'Rodrigo Silva', email: 'comercial@estudioflow.com.br', phone: '+55 11 98888-9999', role: 'Gerente do Estúdio' }
+    ],
+    hosts: [
+      { id: 'shost-2', name: 'Lucas "Kiko"', email: 'tecnico@estudioflow.com.br', phone: '+55 11 97777-8888', role: 'Diretor de Áudio e Vídeo' }
+    ],
+    stage: 'partner',
+    notes: [
+      { id: 'sn-2', date: '2026-06-30', author: 'Admin', text: 'Parceria de intercâmbio de estúdios firmada em SP.' }
+    ],
+    rating: 5,
+    estimatedAudience: '180+ produções mensais',
+    createdAt: '2026-02-15T10:00:00Z',
+    updatedAt: '2026-06-30T14:00:00Z',
+  },
+  {
+    id: 'studio-3',
+    name: 'SoHo Podcast & Vodcast Recording Lab',
+    description: 'Boutique audio and vodcast studio in Soho NYC featuring plush acoustic lounge interiors, vintage tube mics, and high-end video gear.',
+    youtubeUrl: 'https://www.youtube.com/@sohopodcastlab',
+    youtubeChannelId: '@sohopodcastlab',
+    coverImage: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&auto=format&fit=crop&q=80',
+    websiteUrl: 'https://sohopodcastlab.com',
+    country: 'USA',
+    state: 'New York',
+    city: 'New York',
+    latitude: 40.7233,
+    longitude: -74.0030,
+    language: 'English',
+    niche: 'Audio & Vodcast Studio',
+    entityType: 'studio',
+    studioType: 'podcast',
+    hourlyRate: '$180/hr',
+    roomsCount: 2,
+    studioEquipment: [
+      'Neumann U87 Microphones',
+      'Universal Audio Apollo x8p Interfaces',
+      'Canon Cinema EOS C70 Cameras',
+      'Custom Designer Sound Baffles'
+    ],
+    studioServices: [
+      'Podcast Recording & Mixing',
+      'Voiceover & Commercial Audio',
+      'Remote Guest Dial-In (Riverside/SquadCast)',
+      'Audio Mastering & Noise Clean'
+    ],
+    producers: [
+      { id: 'sprod-3', name: 'Chloe Bennett', email: 'booking@sohopodcastlab.com', phone: '+1 (212) 555-0144', role: 'Studio Manager' }
+    ],
+    hosts: [
+      { id: 'shost-3', name: 'David Miller', email: 'david@sohopodcastlab.com', phone: '+1 (212) 555-0122', role: 'Senior Audio Engineer' }
+    ],
+    stage: 'lead',
+    notes: [
+      { id: 'sn-3', date: '2026-07-14', author: 'Admin', text: 'Proposal sent for corporate podcast series recording package.' }
+    ],
+    rating: 5,
+    estimatedAudience: '120+ monthly podcast sessions',
+    createdAt: '2026-04-10T10:00:00Z',
+    updatedAt: '2026-07-14T11:00:00Z',
+  },
+  {
+    id: 'studio-4',
+    name: 'BBC MediaCity Broadcast Centre',
+    description: 'State-of-the-art television, radio broadcast, and commercial podcast production facility in Greater Manchester.',
+    youtubeUrl: 'https://www.youtube.com/@bbcmediacitystudios',
+    youtubeChannelId: '@bbcmediacitystudios',
+    coverImage: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?w=400&auto=format&fit=crop&q=80',
+    websiteUrl: 'https://mediacityuk.co.uk',
+    country: 'United Kingdom',
+    state: 'Greater Manchester',
+    city: 'Manchester',
+    latitude: 53.4723,
+    longitude: -2.2982,
+    language: 'English',
+    niche: 'TV & Radio Broadcast Studio',
+    entityType: 'studio',
+    studioType: 'tv',
+    hourlyRate: '£220/hr',
+    roomsCount: 8,
+    studioEquipment: [
+      'Solid State Logic Broadcast Consoles',
+      'Grass Valley 4K HDR Camera Chains',
+      'Radio ISDN / SourceConnect Lines',
+      'Audience Seating Studio Stage'
+    ],
+    studioServices: [
+      'National Television Recording',
+      'Radio Syndication Feed',
+      'Independent Podcast Studio Rental',
+      'Full Crew Technical Staffing'
+    ],
+    producers: [
+      { id: 'sprod-4', name: 'Simon Hargreaves', email: 'studios@mediacity.co.uk', phone: '+44 161 555 0199', role: 'Commercial Director' }
+    ],
+    hosts: [
+      { id: 'shost-4', name: 'Gemma O\'Connor', email: 'gemma@mediacity.co.uk', phone: '+44 161 555 0155', role: 'Production Supervisor' }
+    ],
+    stage: 'contacted',
+    notes: [
+      { id: 'sn-4', date: '2026-07-05', author: 'Admin', text: 'Inquired about renting Studio 4 for UK podcaster summit recording.' }
+    ],
+    rating: 5,
+    estimatedAudience: '500+ broadcasts per month',
+    createdAt: '2026-03-20T10:00:00Z',
+    updatedAt: '2026-07-05T15:30:00Z',
+  },
+  {
+    id: 'studio-5',
+    name: 'Shibuya Glass Studio & Radio Booth',
+    description: 'Street-level glass enclosed radio, podcast taping, and live streaming booth right in the heart of Shibuya Crossing, Tokyo.',
+    youtubeUrl: 'https://www.youtube.com/@shibuyaglassstudio',
+    youtubeChannelId: '@shibuyaglassstudio',
+    coverImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&auto=format&fit=crop&q=80',
+    websiteUrl: 'https://shibuyaglassstudio.jp',
+    country: 'Japan',
+    state: 'Tokyo',
+    city: 'Tokyo',
+    latitude: 35.6580,
+    longitude: 139.7016,
+    language: 'Japanese',
+    niche: 'Radio & Podcast Street Booth',
+    entityType: 'studio',
+    studioType: 'radio',
+    hourlyRate: '¥15,000/hr',
+    roomsCount: 2,
+    studioEquipment: [
+      'Audio-Technica Broadcast Mics',
+      'Yamaha AG06 Streaming Consoles',
+      'Shibuya Crossing Live Exterior Cam',
+      'Soundproof Glass Panels'
+    ],
+    studioServices: [
+      'FM Radio Station Simulcast',
+      'Podcast Recording',
+      'Multilingual Translation Crew',
+      'Live Street Viewer Broadcasts'
+    ],
+    producers: [
+      { id: 'sprod-5', name: 'Hiroshi Tanaka', email: 'info@shibuyaglassstudio.jp', phone: '+81 3 3333 4444', role: 'Studio Producer' }
+    ],
+    hosts: [
+      { id: 'shost-5', name: 'Aoi Takahashi', email: 'aoi@shibuyaglassstudio.jp', phone: '+81 3 3333 5555', role: 'Lead Audio Specialist' }
+    ],
+    stage: 'viewed',
+    notes: [
+      { id: 'sn-5', date: '2026-07-26', author: 'Admin', text: 'Unique landmark studio location in Tokyo for international tech podcasts.' }
+    ],
+    rating: 5,
+    estimatedAudience: '90+ monthly creator sessions',
+    createdAt: '2026-05-12T10:00:00Z',
+    updatedAt: '2026-07-26T12:00:00Z',
   }
 ];
 

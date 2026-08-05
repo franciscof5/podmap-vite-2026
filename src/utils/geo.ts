@@ -124,10 +124,25 @@ export const KNOWN_CITY_COORDINATES: Record<string, { lat: number; lng: number; 
   'London': { lat: 51.5074, lng: -0.1278, country: 'United Kingdom' },
   'Manchester': { lat: 53.4808, lng: -2.2426, country: 'United Kingdom' },
   'São Paulo': { lat: -23.5505, lng: -46.6333, country: 'Brazil' },
+  'Sao Paulo': { lat: -23.5505, lng: -46.6333, country: 'Brazil' },
+  'Itapetininga': { lat: -23.5916, lng: -48.0531, country: 'Brazil' },
+  'Sorocaba': { lat: -23.5015, lng: -47.4580, country: 'Brazil' },
   'Rio de Janeiro': { lat: -22.9068, lng: -43.1729, country: 'Brazil' },
   'Florianópolis': { lat: -27.5954, lng: -48.5480, country: 'Brazil' },
+  'Curitiba': { lat: -25.4284, lng: -49.2733, country: 'Brazil' },
+  'Belo Horizonte': { lat: -19.9167, lng: -43.9345, country: 'Brazil' },
+  'Brasília': { lat: -15.7975, lng: -47.8919, country: 'Brazil' },
+  'Porto Alegre': { lat: -30.0346, lng: -51.2177, country: 'Brazil' },
+  'Campinas': { lat: -22.9099, lng: -47.0626, country: 'Brazil' },
+  'Santos': { lat: -23.9608, lng: -46.3339, country: 'Brazil' },
+  'Recife': { lat: -8.0476, lng: -34.8770, country: 'Brazil' },
+  'Salvador': { lat: -12.9777, lng: -38.5016, country: 'Brazil' },
+  'Fortaleza': { lat: -3.7319, lng: -38.5267, country: 'Brazil' },
   'Paris': { lat: 48.8566, lng: 2.3522, country: 'France' },
   'Berlin': { lat: 52.5200, lng: 13.4050, country: 'Germany' },
+  'Milano': { lat: 45.4642, lng: 9.1896, country: 'Italy' },
+  'Milan': { lat: 45.4642, lng: 9.1896, country: 'Italy' },
+  'Rome': { lat: 41.9028, lng: 12.4964, country: 'Italy' },
   'Tokyo': { lat: 35.6762, lng: 139.6503, country: 'Japan' },
   'Sydney': { lat: -33.8688, lng: 151.2093, country: 'Australia' },
   'Toronto': { lat: 43.6532, lng: -79.3832, country: 'Canada' },
@@ -136,4 +151,51 @@ export const KNOWN_CITY_COORDINATES: Record<string, { lat: number; lng: number; 
   'Mexico City': { lat: 19.4326, lng: -99.1332, country: 'Mexico' },
   'Buenos Aires': { lat: -34.6037, lng: -58.3816, country: 'Argentina' },
   'Lisbon': { lat: 38.7223, lng: -9.1393, country: 'Portugal' },
+  'Porto': { lat: 41.1579, lng: -8.6291, country: 'Portugal' },
 };
+
+/**
+ * Resolves lat/lng for any city globally, first checking local dictionary, then fetching via Nominatim if needed
+ */
+export async function resolveGeocode(
+  city: string,
+  state?: string,
+  country?: string
+): Promise<{ lat: number; lng: number }> {
+  const cleanCity = (city || '').trim();
+  if (!cleanCity) return { lat: -23.5505, lng: -46.6333 }; // Default São Paulo
+
+  // 1. Direct dictionary lookup
+  const key = Object.keys(KNOWN_CITY_COORDINATES).find(
+    (k) => k.toLowerCase() === cleanCity.toLowerCase()
+  );
+  if (key && KNOWN_CITY_COORDINATES[key]) {
+    return {
+      lat: KNOWN_CITY_COORDINATES[key].lat,
+      lng: KNOWN_CITY_COORDINATES[key].lng,
+    };
+  }
+
+  // 2. Fetch via OpenStreetMap Nominatim
+  try {
+    const query = [cleanCity, state, country].filter(Boolean).join(', ');
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length > 0 && data[0].lat && data[0].lon) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+        };
+      }
+    }
+  } catch (err) {
+    // Network fallback
+  }
+
+  // Fallback to São Paulo coordinates if not found
+  return { lat: -23.5505, lng: -46.6333 };
+}
+

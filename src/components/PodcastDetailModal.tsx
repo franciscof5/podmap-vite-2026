@@ -17,7 +17,11 @@ import {
   ExternalLink,
   ShieldAlert,
   Building,
-  Users
+  Building2,
+  Users,
+  Instagram,
+  Linkedin,
+  Sparkles
 } from 'lucide-react';
 
 interface PodcastDetailModalProps {
@@ -57,27 +61,54 @@ export const PodcastDetailModal: React.FC<PodcastDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl my-8">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
+      <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl my-8 flex flex-col max-h-[90vh]">
         
-        {/* Banner Image & Close */}
-        <div className="relative h-44 sm:h-52 w-full bg-slate-950 overflow-hidden">
-          <img
-            src={podcast.coverImage}
-            alt={podcast.name}
-            className="w-full h-full object-cover blur-sm opacity-40 scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
-
-          {/* Close Button */}
+        {/* Fixed Header */}
+        <div className="bg-slate-950 p-5 sm:p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`p-2.5 rounded-xl border shrink-0 ${
+              podcast.entityType === 'studio'
+                ? 'bg-amber-400/10 text-amber-400 border-amber-500/30'
+                : 'bg-purple-400/10 text-purple-400 border-purple-500/30'
+            }`}>
+              {podcast.entityType === 'studio' ? <Building2 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-bold text-lg text-white truncate">
+                {podcast.entityType === 'studio' ? 'Studio Details' : 'Podcast Details'}
+              </h3>
+              <p className="text-xs text-slate-400 truncate">
+                {podcast.name} — {podcast.city}, {podcast.country}
+              </p>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-slate-900/80 text-slate-400 hover:text-white border border-slate-700/80 transition"
+            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition shrink-0 ml-2"
+            title="Close"
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
 
-          {/* Podcast Header Info Over Banner */}
+        {/* Scrollable Body */}
+        <div className="overflow-y-auto flex-1">
+          {/* Banner Image */}
+          <div className="relative h-44 sm:h-52 w-full bg-slate-950 overflow-hidden">
+            <img
+              src={podcast.coverImage}
+              alt={podcast.name}
+              className="w-full h-full object-cover blur-sm opacity-40 scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+
+            {/* Podcast Header Info Over Banner */}
           <div className="absolute bottom-4 left-6 right-6 flex items-end gap-4">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl shrink-0 bg-slate-800">
               <img
@@ -88,8 +119,12 @@ export const PodcastDetailModal: React.FC<PodcastDetailModalProps> = ({
             </div>
             <div className="flex-1 min-w-0 pb-1">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-purple-950/90 text-purple-300 border border-purple-800/50">
-                  {podcast.niche}
+                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wider ${
+                  podcast.entityType === 'studio'
+                    ? 'bg-amber-950/90 text-amber-300 border border-amber-700/60'
+                    : 'bg-purple-950/90 text-purple-300 border border-purple-800/50'
+                }`}>
+                  {podcast.entityType === 'studio' ? `Studio • ${podcast.studioType || 'Podcast'}` : podcast.niche}
                 </span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">
                   {podcast.language}
@@ -213,35 +248,130 @@ export const PodcastDetailModal: React.FC<PodcastDetailModalProps> = ({
               {/* Description */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                  About Podcast
+                  {podcast.entityType === 'studio' ? 'About Studio Facility' : 'About Podcast'}
                 </h4>
                 <p className="text-sm text-slate-300 leading-relaxed bg-slate-950/50 p-4 rounded-xl border border-slate-800">
                   {podcast.description}
                 </p>
               </div>
 
-              {/* YouTube Channel Banner */}
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-rose-600/20 text-rose-500 flex items-center justify-center border border-rose-500/30 shrink-0">
-                    <Youtube className="w-6 h-6 fill-rose-500" />
+              {/* Studio Specific Details Box */}
+              {podcast.entityType === 'studio' && (
+                <div className="bg-amber-950/20 border border-amber-800/40 p-4 rounded-xl space-y-4">
+                  <div className="flex items-center justify-between gap-4 border-b border-amber-800/30 pb-3 flex-wrap">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase text-amber-400 block mb-0.5">
+                        Studio Type
+                      </span>
+                      <span className="text-sm font-extrabold text-amber-200 capitalize">
+                        {podcast.studioType || 'Podcast Studio'}
+                      </span>
+                    </div>
+                    {podcast.hourlyRate && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-amber-400 block mb-0.5">
+                          Booking Rate
+                        </span>
+                        <span className="text-sm font-extrabold text-amber-300">
+                          {podcast.hourlyRate}
+                        </span>
+                      </div>
+                    )}
+                    {podcast.roomsCount && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-amber-400 block mb-0.5">
+                          Studio Rooms
+                        </span>
+                        <span className="text-sm font-extrabold text-amber-200">
+                          {podcast.roomsCount} Recording Stages
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <h5 className="font-bold text-sm text-white">{ytInfo.handle}</h5>
-                    <p className="text-xs text-slate-400">
-                      {podcast.estimatedAudience || 'Official YouTube Channel'}
-                    </p>
-                  </div>
+
+                  {/* Studio Equipment */}
+                  {podcast.studioEquipment && podcast.studioEquipment.length > 0 && (
+                    <div>
+                      <h5 className="text-xs font-bold text-amber-300 mb-2">Available Gear & Equipment</h5>
+                      <div className="flex flex-wrap gap-1.5">
+                        {podcast.studioEquipment.map((eq, i) => (
+                          <span
+                            key={i}
+                            className="bg-slate-900 text-slate-200 px-2.5 py-1 rounded-lg text-xs border border-amber-800/30 font-medium"
+                          >
+                            ⚡ {eq}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Studio Services */}
+                  {podcast.studioServices && podcast.studioServices.length > 0 && (
+                    <div>
+                      <h5 className="text-xs font-bold text-amber-300 mb-2">Production Services</h5>
+                      <div className="flex flex-wrap gap-1.5">
+                        {podcast.studioServices.map((srv, i) => (
+                          <span
+                            key={i}
+                            className="bg-amber-950/50 text-amber-200 px-2.5 py-1 rounded-lg text-xs border border-amber-700/40 font-medium"
+                          >
+                            ✓ {srv}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <a
-                  href={ytInfo.cleanUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow transition"
-                >
-                  <span>Open Channel</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+              )}
+
+              {/* YouTube Channel Banner & Website Banner */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-rose-600/20 text-rose-500 flex items-center justify-center border border-rose-500/30 shrink-0">
+                      <Youtube className="w-5 h-5 fill-rose-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="font-bold text-xs text-white truncate">{ytInfo.handle}</h5>
+                      <p className="text-[10px] text-slate-400">
+                        {podcast.estimatedAudience || 'Official YouTube Channel'}
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={ytInfo.cleanUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-1 shadow transition shrink-0"
+                  >
+                    <span>Channel</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {podcast.websiteUrl && (
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 shrink-0">
+                        <Globe className="w-5 h-5 text-cyan-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="font-bold text-xs text-white truncate">Official Website</h5>
+                        <p className="text-[10px] text-slate-400 truncate">{podcast.websiteUrl}</p>
+                      </div>
+                    </div>
+                    <a
+                      href={podcast.websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs flex items-center gap-1 shadow transition shrink-0"
+                    >
+                      <span>Visit</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
               </div>
 
               {/* Location Details */}
@@ -294,23 +424,47 @@ export const PodcastDetailModal: React.FC<PodcastDetailModalProps> = ({
                           <div className="text-[11px] text-purple-300 font-medium">{host.role}</div>
                         )}
                         {isAdmin ? (
-                          <div className="space-y-1 text-xs pt-1 border-t border-slate-800/80">
+                          <div className="space-y-1.5 text-xs pt-2 border-t border-slate-800/80">
                             {host.email && (
                               <a
                                 href={`mailto:${host.email}`}
                                 className="flex items-center gap-1.5 text-slate-300 hover:text-purple-300 transition"
                               >
-                                <Mail className="w-3.5 h-3.5 text-slate-500" />
+                                <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                                 <span>{host.email}</span>
                               </a>
                             )}
-                            {host.phone && (
+                            {(host.whatsapp || host.phone) && (
                               <a
-                                href={`tel:${host.phone}`}
-                                className="flex items-center gap-1.5 text-slate-300 hover:text-purple-300 transition"
+                                href={`https://wa.me/${(host.whatsapp || host.phone || '').replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-slate-300 hover:text-emerald-400 transition"
                               >
-                                <Phone className="w-3.5 h-3.5 text-slate-500" />
-                                <span>{host.phone}</span>
+                                <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span>{host.whatsapp || host.phone}</span>
+                              </a>
+                            )}
+                            {host.instagram && (
+                              <a
+                                href={host.instagram.startsWith('http') ? host.instagram : `https://instagram.com/${host.instagram.replace('@', '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-slate-300 hover:text-pink-400 transition"
+                              >
+                                <Instagram className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                                <span>{host.instagram}</span>
+                              </a>
+                            )}
+                            {host.linkedin && (
+                              <a
+                                href={host.linkedin.startsWith('http') ? host.linkedin : `https://linkedin.com/in/${host.linkedin}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-slate-300 hover:text-cyan-400 transition"
+                              >
+                                <Linkedin className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                                <span>LinkedIn Profile</span>
                               </a>
                             )}
                           </div>
@@ -345,23 +499,47 @@ export const PodcastDetailModal: React.FC<PodcastDetailModalProps> = ({
                           <div className="text-[11px] text-indigo-300 font-medium">{prod.role}</div>
                         )}
                         {isAdmin ? (
-                          <div className="space-y-1 text-xs pt-1 border-t border-slate-800/80">
+                          <div className="space-y-1.5 text-xs pt-2 border-t border-slate-800/80">
                             {prod.email && (
                               <a
                                 href={`mailto:${prod.email}`}
                                 className="flex items-center gap-1.5 text-slate-300 hover:text-indigo-300 transition"
                               >
-                                <Mail className="w-3.5 h-3.5 text-slate-500" />
+                                <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                                 <span>{prod.email}</span>
                               </a>
                             )}
-                            {prod.phone && (
+                            {(prod.whatsapp || prod.phone) && (
                               <a
-                                href={`tel:${prod.phone}`}
-                                className="flex items-center gap-1.5 text-slate-300 hover:text-indigo-300 transition"
+                                href={`https://wa.me/${(prod.whatsapp || prod.phone || '').replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-slate-300 hover:text-emerald-400 transition"
                               >
-                                <Phone className="w-3.5 h-3.5 text-slate-500" />
-                                <span>{prod.phone}</span>
+                                <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span>{prod.whatsapp || prod.phone}</span>
+                              </a>
+                            )}
+                            {prod.instagram && (
+                              <a
+                                href={prod.instagram.startsWith('http') ? prod.instagram : `https://instagram.com/${prod.instagram.replace('@', '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-slate-300 hover:text-pink-400 transition"
+                              >
+                                <Instagram className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                                <span>{prod.instagram}</span>
+                              </a>
+                            )}
+                            {prod.linkedin && (
+                              <a
+                                href={prod.linkedin.startsWith('http') ? prod.linkedin : `https://linkedin.com/in/${prod.linkedin}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-slate-300 hover:text-cyan-400 transition"
+                              >
+                                <Linkedin className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                                <span>LinkedIn Profile</span>
                               </a>
                             )}
                           </div>
@@ -443,9 +621,10 @@ export const PodcastDetailModal: React.FC<PodcastDetailModalProps> = ({
           )}
 
         </div>
+        </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between shrink-0">
           <div className="text-xs text-slate-500">
             Added {new Date(podcast.createdAt).toLocaleDateString()}
           </div>

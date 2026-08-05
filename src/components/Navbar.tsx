@@ -9,7 +9,8 @@ import {
   Unlock,
   Sparkles,
   Search,
-  RotateCcw
+  RotateCcw,
+  Database
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -24,6 +25,7 @@ interface NavbarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onResetData?: () => void;
+  isPbSeeded?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -38,33 +40,53 @@ export const Navbar: React.FC<NavbarProps> = ({
   searchQuery,
   onSearchChange,
   onResetData,
+  isPbSeeded = false,
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-slate-100 shadow-md">
+    <header className="sticky top-0 z-40 bg-[#0e0e11]/95 backdrop-blur-md border-b border-zinc-800/80 text-zinc-100 shadow-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-3">
           
-          {/* Logo & Title */}
+          {/* Logo & PodCut Branding */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
-              <Mic className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-400 via-amber-400 to-yellow-500 flex items-center justify-center text-black shadow-lg shadow-yellow-500/20 border border-yellow-300/40 shrink-0">
+              <Mic className="w-5 h-5 fill-black stroke-black" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-lg tracking-tight text-white flex items-center gap-1.5">
-                  PodMap
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-purple-400 border border-purple-500/30">
-                    CRM
-                  </span>
+                <h1 className="font-extrabold text-xl tracking-tight text-white flex items-center gap-1">
+                  Pod<span className="text-yellow-400 font-extrabold">Map</span>
                 </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-yellow-400/10 text-yellow-400 border border-yellow-500/30 uppercase tracking-wider">
+                  <Sparkles className="w-3 h-3 text-yellow-400" />
+                  AI Directory
+                </span>
+                {isPbSeeded ? (
+                  <span
+                    className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm"
+                    title="PocketBase Database Online & Synced (pocket.f5sites.com.br)"
+                  >
+                    <Database className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="hidden sm:inline">PB Synced</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={onResetData}
+                    className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-yellow-400 text-black hover:bg-yellow-300 border border-yellow-300 flex items-center gap-1.5 transition active:scale-95 shadow-md shadow-yellow-500/20"
+                    title="Seed database into PocketBase (pocket.f5sites.com.br)"
+                  >
+                    <Database className="w-3.5 h-3.5 fill-black stroke-black" />
+                    <span>Seed PocketBase</span>
+                  </button>
+                )}
                 {isAdmin && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
-                    SECRET ADMIN MODE
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-yellow-400 text-black shadow animate-pulse">
+                    ADMIN CRM MODE
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                Global Podcast Directory & Pipeline
+              <p className="text-[11px] text-zinc-400 hidden sm:block">
+                Global Podcast Directory & Studio Map • PodCut Edition
               </p>
             </div>
           </div>
@@ -72,62 +94,62 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Quick Search */}
           <div className="flex-1 max-w-md mx-2 hidden md:block">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Search podcast name, host, city, niche..."
+                placeholder="Search podcasts, studios, equipment, city..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-slate-800/90 border border-slate-700/80 rounded-lg pl-9 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                className="w-full bg-[#16161a] border border-zinc-800 rounded-xl pl-10 pr-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-yellow-400/60 focus:border-yellow-400 transition"
               />
             </div>
           </div>
 
-          {/* Action Controls */}
+          {/* Action Controls in PodCut Style */}
           <div className="flex items-center gap-2">
             
             {/* View switcher (If Admin) */}
             {isAdmin && (
-              <div className="bg-slate-800 p-1 rounded-lg border border-slate-700/80 flex items-center text-xs font-medium">
+              <div className="bg-[#18181c] p-1 rounded-xl border border-zinc-800 flex items-center text-xs font-semibold">
                 <button
                   onClick={() => onViewChange('map')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition ${
                     currentView === 'map'
-                      ? 'bg-purple-600 text-white shadow'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-yellow-400 text-black font-extrabold shadow'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
-                  title="World Map & List View"
+                  title="World Map & Directory"
                 >
                   <MapPin className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Map & List</span>
+                  <span className="hidden sm:inline">Map & Directory</span>
                 </button>
                 <button
                   onClick={() => onViewChange('kanban')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition ${
                     currentView === 'kanban'
-                      ? 'bg-purple-600 text-white shadow'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-yellow-400 text-black font-extrabold shadow'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
-                  title="CRM Kanban Board"
+                  title="CRM Kanban Pipeline"
                 >
                   <Kanban className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Kanban CRM</span>
+                  <span className="hidden sm:inline">CRM Kanban</span>
                 </button>
               </div>
             )}
 
-            {/* Admin Specific Actions */}
+            {/* Admin Actions */}
             {isAdmin ? (
               <>
                 <button
                   onClick={onOpenSuggestionsInbox}
-                  className="relative p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition"
-                  title="Review User Suggestions"
+                  className="relative p-2 rounded-xl bg-[#18181c] hover:bg-zinc-800 border border-zinc-700/80 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition"
+                  title="Review Suggestions"
                 >
-                  <Inbox className="w-4 h-4 text-amber-400" />
-                  <span className="hidden lg:inline">Suggestions</span>
+                  <Inbox className="w-4 h-4 text-yellow-400" />
+                  <span className="hidden lg:inline">Inbox</span>
                   {pendingSuggestionsCount > 0 && (
-                    <span className="bg-amber-500 text-slate-950 font-bold px-1.5 py-0.2 text-[10px] rounded-full">
+                    <span className="bg-yellow-400 text-black font-extrabold px-1.5 py-0.2 text-[10px] rounded-full">
                       {pendingSuggestionsCount}
                     </span>
                   )}
@@ -135,19 +157,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 <button
                   onClick={onOpenAddPodcastModal}
-                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-purple-900/30 transition"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-black text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-yellow-500/20 transition active:scale-95"
                 >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Insert Podcast</span>
+                  <PlusCircle className="w-4 h-4 fill-black stroke-yellow-400" />
+                  <span>Insert CRM Entry</span>
                 </button>
               </>
             ) : (
-              /* Public User Action */
+              /* Public PodCut Style Button */
               <button
                 onClick={onOpenSuggestModal}
-                className="px-3.5 py-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition border border-indigo-400/30"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-black text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-yellow-500/20 transition active:scale-95"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <Sparkles className="w-3.5 h-3.5 fill-black" />
                 <span>Suggest Podcast</span>
               </button>
             )}
@@ -155,31 +177,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Admin Secret Lock Toggle */}
             <button
               onClick={onToggleAdminModal}
-              className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 border transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
                 isAdmin
-                  ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60'
-                  : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white'
+                  ? 'bg-amber-950/40 border-yellow-500/60 text-yellow-300 hover:bg-amber-900/60'
+                  : 'bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-yellow-500/50 hover:text-white'
               }`}
-              title={isAdmin ? 'Secret Admin Active (Click to Exit)' : 'Secret CRM Login'}
+              title={isAdmin ? 'Exit Admin Mode' : 'Secret CRM Login'}
             >
               {isAdmin ? (
                 <>
-                  <Unlock className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden xl:inline text-xs">Admin Mode</span>
+                  <Unlock className="w-4 h-4 text-yellow-400" />
+                  <span className="hidden xl:inline">Exit Admin</span>
                 </>
               ) : (
                 <>
-                  <Lock className="w-4 h-4 text-slate-400" />
-                  <span className="hidden sm:inline text-xs">Secret CRM</span>
+                  <Lock className="w-4 h-4 text-zinc-400" />
+                  <span className="hidden sm:inline">CRM Login</span>
                 </>
               )}
             </button>
 
-            {/* Reset Seed Data (Admin Only) */}
+            {/* Reset Seed Data */}
             {isAdmin && onResetData && (
               <button
                 onClick={onResetData}
-                className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 transition"
+                className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400 border border-zinc-700 transition"
                 title="Reset to Initial Seed Data"
               >
                 <RotateCcw className="w-4 h-4" />
@@ -192,13 +214,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Mobile Search Bar */}
         <div className="pb-3 md:hidden">
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
-              placeholder="Search podcast, host, city, niche..."
+              placeholder="Search podcasts, studios, equipment..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-slate-800/90 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full bg-[#16161a] border border-zinc-800 rounded-xl pl-10 pr-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
         </div>

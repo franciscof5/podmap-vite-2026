@@ -154,6 +154,7 @@ const PODCAST_COLLECTION_FIELDS = [
   { name: 'notes', type: 'json' },
   { name: 'rating', type: 'number' },
   { name: 'estimatedAudience', type: 'text' },
+  { name: 'createdAt', type: 'text' },
 ];
 
 const SUGGESTION_COLLECTION_FIELDS = [
@@ -356,37 +357,48 @@ export async function fetchPodcastsFromPB(): Promise<Podcast[] | null> {
   const baseUrl = creds.url.replace(/\/+$/, '');
 
   let records: any[] = [];
-  try {
-    // 1. Try public read via SDK
-    pb.baseUrl = baseUrl;
-    records = await pb.collection('podcasts').getFullList({
-      sort: '-createdAt',
-      requestKey: null,
-    });
-  } catch (err1) {
-    // 2. Try direct fetch API call without SDK overhead
+  
+  // Helper to fetch records with fallback sorting
+  const tryGetRecords = async (sortField: string) => {
     try {
-      const directRes = await fetch(`${baseUrl}/api/collections/podcasts/records?page=1&perPage=1000&skipTotal=1&sort=-createdAt`, {
+      pb.baseUrl = baseUrl;
+      return await pb.collection('podcasts').getFullList({
+        sort: sortField,
+        requestKey: null,
+      });
+    } catch {
+      const res = await fetch(`${baseUrl}/api/collections/podcasts/records?page=1&perPage=1000&skipTotal=1${sortField ? `&sort=${sortField}` : ''}`, {
         headers: { 'Cache-Control': 'no-cache' },
       });
-      if (directRes.ok) {
-        const data = await directRes.json();
-        records = data.items || [];
-      } else {
-        throw new Error(`Direct fetch status ${directRes.status}`);
+      if (res.ok) {
+        const data = await res.json();
+        return data.items || [];
       }
-    } catch (err2) {
-      // 3. Authenticate as admin and retry via SDK
+      throw new Error(`Direct fetch status ${res.status}`);
+    }
+  };
+
+  try {
+    try {
+      records = await tryGetRecords('-createdAt');
+    } catch {
       try {
-        await authenticateAdmin();
-        records = await pb.collection('podcasts').getFullList({
-          sort: '-createdAt',
-          requestKey: null,
-        });
-      } catch (err3) {
-        console.warn('Failed to fetch podcasts from PocketBase:', err3);
-        return null;
+        records = await tryGetRecords('-created');
+      } catch {
+        records = await tryGetRecords('');
       }
+    }
+  } catch (err1) {
+    try {
+      await authenticateAdmin();
+      try {
+        records = await pb.collection('podcasts').getFullList({ sort: '-createdAt', requestKey: null });
+      } catch {
+        records = await pb.collection('podcasts').getFullList({ sort: '-created', requestKey: null });
+      }
+    } catch (err3) {
+      console.warn('Failed to fetch podcasts from PocketBase:', err3);
+      return null;
     }
   }
 
@@ -421,8 +433,8 @@ export async function fetchPodcastsFromPB(): Promise<Podcast[] | null> {
     notes: Array.isArray(r.notes) ? r.notes : [],
     rating: r.rating ? Number(r.rating) : undefined,
     estimatedAudience: r.estimatedAudience || '',
-    createdAt: r.created || new Date().toISOString(),
-    updatedAt: r.updated || new Date().toISOString(),
+    createdAt: r.createdAt || r.created || new Date().toISOString(),
+    updatedAt: r.updated || r.created || new Date().toISOString(),
   }));
 }
 
@@ -461,6 +473,7 @@ export async function savePodcastToPB(podcast: Podcast): Promise<boolean> {
       notes: podcast.notes || [],
       rating: podcast.rating || 5,
       estimatedAudience: podcast.estimatedAudience || '',
+      createdAt: podcast.createdAt || new Date().toISOString(),
     };
 
     // Find existing record by original_id or id
@@ -522,34 +535,47 @@ export async function fetchSuggestionsFromPB(): Promise<PodcastSuggestion[] | nu
   const baseUrl = creds.url.replace(/\/+$/, '');
 
   let records: any[] = [];
-  try {
-    pb.baseUrl = baseUrl;
-    records = await pb.collection('suggestions').getFullList({
-      sort: '-createdAt',
-      requestKey: null,
-    });
-  } catch (err1) {
+
+  const tryGetSuggestions = async (sortField: string) => {
     try {
-      const directRes = await fetch(`${baseUrl}/api/collections/suggestions/records?page=1&perPage=1000&skipTotal=1&sort=-createdAt`, {
+      pb.baseUrl = baseUrl;
+      return await pb.collection('suggestions').getFullList({
+        sort: sortField,
+        requestKey: null,
+      });
+    } catch {
+      const res = await fetch(`${baseUrl}/api/collections/suggestions/records?page=1&perPage=1000&skipTotal=1${sortField ? `&sort=${sortField}` : ''}`, {
         headers: { 'Cache-Control': 'no-cache' },
       });
-      if (directRes.ok) {
-        const data = await directRes.json();
-        records = data.items || [];
-      } else {
-        throw new Error(`Direct fetch status ${directRes.status}`);
+      if (res.ok) {
+        const data = await res.json();
+        return data.items || [];
       }
-    } catch (err2) {
+      throw new Error(`Direct fetch status ${res.status}`);
+    }
+  };
+
+  try {
+    try {
+      records = await tryGetSuggestions('-createdAt');
+    } catch {
       try {
-        await authenticateAdmin();
-        records = await pb.collection('suggestions').getFullList({
-          sort: '-createdAt',
-          requestKey: null,
-        });
-      } catch (err3) {
-        console.warn('Failed to fetch suggestions from PocketBase:', err3);
-        return null;
+        records = await tryGetSuggestions('-created');
+      } catch {
+        records = await tryGetSuggestions('');
       }
+    }
+  } catch (err1) {
+    try {
+      await authenticateAdmin();
+      try {
+        records = await pb.collection('suggestions').getFullList({ sort: '-createdAt', requestKey: null });
+      } catch {
+        records = await pb.collection('suggestions').getFullList({ sort: '-created', requestKey: null });
+      }
+    } catch (err3) {
+      console.warn('Failed to fetch suggestions from PocketBase:', err3);
+      return null;
     }
   }
 

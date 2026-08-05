@@ -360,13 +360,13 @@ export async function fetchPodcastsFromPB(): Promise<Podcast[] | null> {
     // 1. Try public read via SDK
     pb.baseUrl = baseUrl;
     records = await pb.collection('podcasts').getFullList({
-      sort: '-created',
+      sort: '-createdAt',
       requestKey: null,
     });
   } catch (err1) {
     // 2. Try direct fetch API call without SDK overhead
     try {
-      const directRes = await fetch(`${baseUrl}/api/collections/podcasts/records?sort=-created&perPage=500`, {
+      const directRes = await fetch(`${baseUrl}/api/collections/podcasts/records?page=1&perPage=1000&skipTotal=1&sort=-createdAt`, {
         headers: { 'Cache-Control': 'no-cache' },
       });
       if (directRes.ok) {
@@ -380,7 +380,7 @@ export async function fetchPodcastsFromPB(): Promise<Podcast[] | null> {
       try {
         await authenticateAdmin();
         records = await pb.collection('podcasts').getFullList({
-          sort: '-created',
+          sort: '-createdAt',
           requestKey: null,
         });
       } catch (err3) {
@@ -525,12 +525,12 @@ export async function fetchSuggestionsFromPB(): Promise<PodcastSuggestion[] | nu
   try {
     pb.baseUrl = baseUrl;
     records = await pb.collection('suggestions').getFullList({
-      sort: '-created',
+      sort: '-createdAt',
       requestKey: null,
     });
   } catch (err1) {
     try {
-      const directRes = await fetch(`${baseUrl}/api/collections/suggestions/records?sort=-created&perPage=500`, {
+      const directRes = await fetch(`${baseUrl}/api/collections/suggestions/records?page=1&perPage=1000&skipTotal=1&sort=-createdAt`, {
         headers: { 'Cache-Control': 'no-cache' },
       });
       if (directRes.ok) {
@@ -543,7 +543,7 @@ export async function fetchSuggestionsFromPB(): Promise<PodcastSuggestion[] | nu
       try {
         await authenticateAdmin();
         records = await pb.collection('suggestions').getFullList({
-          sort: '-created',
+          sort: '-createdAt',
           requestKey: null,
         });
       } catch (err3) {

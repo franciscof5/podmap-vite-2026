@@ -69,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Database className="w-3.5 h-3.5 text-emerald-400" />
                     <span className="hidden sm:inline">PB Synced</span>
                   </span>
-                ) : (
+                ) : isAdmin ? (
                   <button
                     onClick={onResetData}
                     className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-yellow-400 text-black hover:bg-yellow-300 border border-yellow-300 flex items-center gap-1.5 transition active:scale-95 shadow-md shadow-yellow-500/20"
@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Database className="w-3.5 h-3.5 fill-black stroke-black" />
                     <span>Seed PocketBase</span>
                   </button>
-                )}
+                ) : null}
                 {isAdmin && (
                   <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-yellow-400 text-black shadow animate-pulse">
                     ADMIN CRM MODE

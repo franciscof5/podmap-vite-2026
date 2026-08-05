@@ -32,7 +32,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
       onSuccessLogin();
       onClose();
     } else {
-      setErrorMsg('Incorrect PIN! Default is 1234');
+      setErrorMsg('PIN de segurança incorreto!');
     }
   };
 
@@ -86,7 +86,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
               <input
                 type="password"
                 autoFocus
-                placeholder="Enter PIN (Default: 1234)"
+                placeholder="Digite a senha PIN"
                 value={pinInput}
                 onChange={(e) => {
                   setPinInput(e.target.value);

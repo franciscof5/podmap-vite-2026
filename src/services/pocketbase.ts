@@ -7,12 +7,17 @@ let lastAuthErrorMessage = '';
 export function getPbCredentials() {
   const customEmail = localStorage.getItem('pb_admin_email');
   const customPassword = localStorage.getItem('pb_admin_password');
-  const customUrl = localStorage.getItem('pb_url');
+  let customUrl = localStorage.getItem('pb_url');
+
+  if (customUrl && customUrl.includes('f5sites.com.br')) {
+    customUrl = customUrl.replace('f5sites.com.br', 'f5sites.com');
+    localStorage.setItem('pb_url', customUrl);
+  }
 
   return {
     email: customEmail || (import.meta as any).env?.VITE_POCKETBASE_ADMIN_EMAIL || 'francisco@f5sites.com',
     password: customPassword || (import.meta as any).env?.VITE_POCKETBASE_ADMIN_PASSWORD || 'ehcampeao@123',
-    url: customUrl || (import.meta as any).env?.VITE_POCKETBASE_URL || 'https://pocket.f5sites.com.br',
+    url: customUrl || (import.meta as any).env?.VITE_POCKETBASE_URL || 'https://pocket.f5sites.com',
   };
 }
 
@@ -655,4 +660,117 @@ export async function deleteSuggestionFromPB(suggestionId: string): Promise<bool
     console.warn('PocketBase suggestion delete warning:', err);
     return false;
   }
+}
+
+export interface PbDiagnosticStep {
+  name: string;
+  status: 'pending' | 'success' | 'warning' | 'error';
+  message: string;
+  details?: string;
+}
+
+/**
+ * Diagnostic tool to debug PocketBase network, CORS, and API rules in production
+ */
+export async function runPocketBaseDiagnostics(): Promise<PbDiagnosticStep[]> {
+  const steps: PbDiagnosticStep[] = [];
+  const creds = getPbCredentials();
+  const url = creds.url.replace(/\/+$/, '');
+
+  // Step 1: Health Check (HTTP / CORS)
+  try {
+    const healthRes = await fetch(`${url}/api/health`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (healthRes.ok) {
+      steps.push({
+        name: 'Conexão HTTP / CORS',
+        status: 'success',
+        message: `Servidor acessível em ${url}`,
+      });
+    } else {
+      steps.push({
+        name: 'Conexão HTTP / CORS',
+        status: 'warning',
+        message: `Servidor respondeu com HTTP ${healthRes.status}`,
+      });
+    }
+  } catch (err: any) {
+    steps.push({
+      name: 'Conexão HTTP / CORS',
+      status: 'error',
+      message: `Bloqueio de CORS ou Rede (${err?.message || String(err)})`,
+      details: `O navegador bloqueou a conexão com ${url}. No painel PocketBase (${url}/_/#/settings/cors), adicione a origem ${window.location.origin} ou '*'.`,
+    });
+    return steps;
+  }
+
+  // Step 2: Public API Rule (podcasts)
+  try {
+    const res = await fetch(`${url}/api/collections/podcasts/records?perPage=1`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      steps.push({
+        name: 'Regra de API Pública (podcasts)',
+        status: 'success',
+        message: `Acesso público liberado (${data.totalItems || data.items?.length || 0} registros)`,
+      });
+    } else if (res.status === 403) {
+      steps.push({
+        name: 'Regra de API Pública (podcasts)',
+        status: 'warning',
+        message: `Leitura pública bloqueada (HTTP 403). A regra de API (listRule) precisa ser "" (vazio).`,
+        details: `No PocketBase (${url}/_/), vá em Collections > podcasts > API Rules e limpe o campo 'List/Search rule' (deixe o campo em branco) para liberar leitura sem obrigatoriedade de admin.`,
+      });
+    } else if (res.status === 404) {
+      steps.push({
+        name: 'Regra de API Pública (podcasts)',
+        status: 'warning',
+        message: `A coleção 'podcasts' ainda não existe no PocketBase. Execute o Seed.`,
+      });
+    } else {
+      steps.push({
+        name: 'Regra de API Pública (podcasts)',
+        status: 'warning',
+        message: `Status HTTP ${res.status}`,
+      });
+    }
+  } catch (err: any) {
+    steps.push({
+      name: 'Regra de API Pública (podcasts)',
+      status: 'error',
+      message: `Erro ao testar API (${err?.message || String(err)})`,
+    });
+  }
+
+  // Step 3: Admin Auth
+  try {
+    const authed = await authenticateAdmin();
+    if (authed) {
+      steps.push({
+        name: 'Autenticação Superuser/Admin',
+        status: 'success',
+        message: `Login de admin realizado com sucesso (${creds.email})`,
+      });
+    } else {
+      steps.push({
+        name: 'Autenticação Superuser/Admin',
+        status: 'error',
+        message: `Falha nas credenciais de admin para ${creds.email}`,
+        details: lastAuthErrorMessage || 'Verifique o e-mail e senha cadastrados no PocketBase.',
+      });
+    }
+  } catch (err: any) {
+    steps.push({
+      name: 'Autenticação Superuser/Admin',
+      status: 'error',
+      message: `Erro na autenticação (${err?.message || String(err)})`,
+    });
+  }
+
+  return steps;
 }

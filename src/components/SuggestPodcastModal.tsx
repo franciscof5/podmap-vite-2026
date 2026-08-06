@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { PodcastSuggestion, Podcast, ContactPerson } from '../types';
-import { KNOWN_CITY_COORDINATES } from '../utils/geo';
 import { LocationAutocomplete, LocationData } from './LocationAutocomplete';
 import {
   X,
@@ -14,11 +13,14 @@ import {
   Plus,
   Trash2,
   Building2,
-  Phone,
-  Mail,
-  Linkedin,
   Video,
-  Building
+  Building,
+  Link as LinkIcon,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Music,
+  Globe2
 } from 'lucide-react';
 
 interface SuggestPodcastModalProps {
@@ -27,6 +29,7 @@ interface SuggestPodcastModalProps {
   onSubmitSuggestion: (suggestion: Omit<PodcastSuggestion, 'id' | 'createdAt' | 'status'>) => void;
   existingStudios?: Podcast[];
   allPodcasts?: Podcast[];
+  existingSuggestions?: PodcastSuggestion[];
 }
 
 export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
@@ -35,18 +38,20 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
   onSubmitSuggestion,
   existingStudios = [],
   allPodcasts = [],
+  existingSuggestions = [],
 }) => {
-  const [podcastName, setPodcastName] = useState('');
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [instagramUrl, setInstagramUrl] = useState('');
-  const [tiktokUrl, setTiktokUrl] = useState('');
+  // Simplified Flow State: Links Array (At least 1 required)
+  const [links, setLinks] = useState<string[]>(['']);
 
-  // Target Location
+  // Collapsible Optional Section
+  const [isMoreDetailsOpen, setIsMoreDetailsOpen] = useState(false);
+
+  // Optional Fields
+  const [podcastName, setPodcastName] = useState('');
   const [singleLocationInput, setSingleLocationInput] = useState('São Paulo, SP, Brazil');
   const [country, setCountry] = useState('Brazil');
   const [state, setState] = useState('SP');
   const [city, setCity] = useState('São Paulo');
-
   const [language, setLanguage] = useState('Portuguese');
   const [niche, setNiche] = useState('Tech & AI');
 
@@ -79,6 +84,24 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
   const [submitterNote, setSubmitterNote] = useState('');
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
 
+  // Helper function to reset all form fields
+  const resetForm = () => {
+    setLinks(['']);
+    setIsMoreDetailsOpen(false);
+    setPodcastName('');
+    setSingleLocationInput('São Paulo, SP, Brazil');
+    setCountry('Brazil');
+    setState('SP');
+    setCity('São Paulo');
+    setLanguage('Portuguese');
+    setNiche('Tech & AI');
+    setSelectedStudioId('not_now');
+    setCustomStudioName('');
+    setHosts([{ name: '', whatsapp: '', email: '', instagram: '', linkedin: '' }]);
+    setProducers([{ name: '', whatsapp: '', email: '', instagram: '', linkedin: '' }]);
+    setSubmitterNote('');
+  };
+
   // Known contacts for autocomplete
   const knownContacts = useMemo(() => {
     const map = new Map<string, ContactPerson>();
@@ -92,7 +115,99 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
     return Array.from(map.values());
   }, [allPodcasts]);
 
+  // Helper to normalize URL for matching
+  const normalizeUrl = (url: string) => {
+    return url
+      .toLowerCase()
+      .trim()
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/$/, '');
+  };
+
+  // Duplicate checker across podcasts and suggestions
+  const duplicatesInfo = useMemo(() => {
+    const activeLinks = links.map((l) => l.trim()).filter((l) => l.length > 5);
+    if (activeLinks.length === 0) return [];
+
+    const matches: Array<{ link: string; matchedName: string; type: 'podcast' | 'suggestion' }> = [];
+
+    activeLinks.forEach((rawUrl) => {
+      const norm = normalizeUrl(rawUrl);
+      if (!norm) return;
+
+      // Extract handle or key part if possible
+      const handleMatch = norm.match(/@([\w.-]+)/) || norm.match(/instagram\.com\/([\w.-]+)/) || norm.match(/youtube\.com\/([\w.-]+)/);
+      const keyToken = handleMatch ? handleMatch[1].toLowerCase() : norm;
+
+      // 1. Check in allPodcasts
+      for (const pod of allPodcasts) {
+        const podUrls = [pod.youtubeUrl, pod.instagramUrl, pod.tiktokUrl, pod.websiteUrl].filter(Boolean) as string[];
+        const isMatch = podUrls.some((u) => {
+          const n = normalizeUrl(u);
+          return n.includes(keyToken) || norm.includes(n);
+        });
+
+        if (isMatch) {
+          matches.push({ link: rawUrl, matchedName: pod.name, type: 'podcast' });
+          break;
+        }
+      }
+
+      // 2. Check in existingSuggestions if not found in podcasts
+      if (!matches.some((m) => m.link === rawUrl)) {
+        for (const sug of existingSuggestions) {
+          const sugUrls = [sug.youtubeUrl, sug.instagramUrl, sug.tiktokUrl, sug.websiteUrl].filter(Boolean) as string[];
+          const isMatch = sugUrls.some((u) => {
+            const n = normalizeUrl(u);
+            return n.includes(keyToken) || norm.includes(n);
+          });
+
+          if (isMatch) {
+            matches.push({ link: rawUrl, matchedName: sug.podcastName, type: 'suggestion' });
+            break;
+          }
+        }
+      }
+    });
+
+    return matches;
+  }, [links, allPodcasts, existingSuggestions]);
+
   if (!isOpen) return null;
+
+  // Helper to identify platform type
+  const getLinkMeta = (url: string) => {
+    const u = url.toLowerCase();
+    if (u.includes('youtube.com') || u.includes('youtu.be')) {
+      return { type: 'youtube', label: 'YouTube', icon: Youtube, color: 'text-rose-500' };
+    }
+    if (u.includes('instagram.com') || u.includes('instagr.am')) {
+      return { type: 'instagram', label: 'Instagram', icon: Instagram, color: 'text-pink-500' };
+    }
+    if (u.includes('tiktok.com')) {
+      return { type: 'tiktok', label: 'TikTok', icon: Video, color: 'text-cyan-400' };
+    }
+    if (u.includes('spotify.com')) {
+      return { type: 'spotify', label: 'Spotify', icon: Music, color: 'text-emerald-400' };
+    }
+    return { type: 'website', label: 'Website / Link', icon: Globe2, color: 'text-yellow-400' };
+  };
+
+  const handleLinkChange = (index: number, value: string) => {
+    const updated = [...links];
+    updated[index] = value;
+    setLinks(updated);
+  };
+
+  const handleAddLink = () => {
+    setLinks([...links, '']);
+  };
+
+  const handleRemoveLink = (index: number) => {
+    if (links.length <= 1) return;
+    setLinks(links.filter((_, i) => i !== index));
+  };
 
   const handleLocationSelect = (loc: LocationData) => {
     setSingleLocationInput(loc.formattedLocation);
@@ -102,10 +217,7 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
   };
 
   const handleAddHost = () => {
-    setHosts([
-      ...hosts,
-      { name: '', whatsapp: '', email: '', instagram: '', linkedin: '' }
-    ]);
+    setHosts([...hosts, { name: '', whatsapp: '', email: '', instagram: '', linkedin: '' }]);
   };
 
   const handleRemoveHost = (index: number) => {
@@ -114,10 +226,7 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
   };
 
   const handleAddProducer = () => {
-    setProducers([
-      ...producers,
-      { name: '', whatsapp: '', email: '', instagram: '', linkedin: '' }
-    ]);
+    setProducers([...producers, { name: '', whatsapp: '', email: '', instagram: '', linkedin: '' }]);
   };
 
   const handleRemoveProducer = (index: number) => {
@@ -155,7 +264,36 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!podcastName.trim()) return;
+
+    const validLinks = links.map((l) => l.trim()).filter((l) => l.length > 0);
+    if (validLinks.length === 0) return;
+
+    // Classify links into youtube, instagram, tiktok, or website
+    let ytUrl = '';
+    let igUrl = '';
+    let tkUrl = '';
+    let webUrl = '';
+
+    validLinks.forEach((url) => {
+      const meta = getLinkMeta(url);
+      if (meta.type === 'youtube' && !ytUrl) ytUrl = url;
+      else if (meta.type === 'instagram' && !igUrl) igUrl = url;
+      else if (meta.type === 'tiktok' && !tkUrl) tkUrl = url;
+      else if (!webUrl) webUrl = url;
+    });
+
+    // Auto-derive Podcast Name if user left it blank
+    let derivedName = podcastName.trim();
+    if (!derivedName) {
+      const primaryUrl = validLinks[0];
+      const matchHandle = primaryUrl.match(/@([\w.-]+)/) || primaryUrl.match(/\.com\/([\w.-]+)/);
+      if (matchHandle && matchHandle[1]) {
+        const cleanHandle = matchHandle[1].replace(/[-_]/g, ' ');
+        derivedName = cleanHandle.charAt(0).toUpperCase() + cleanHandle.slice(1);
+      } else {
+        derivedName = 'Podcast Sugerido';
+      }
+    }
 
     // Resolve studio name
     let studioNameResolved = 'Studio Not Listed / Not Now';
@@ -195,33 +333,42 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
       }));
 
     onSubmitSuggestion({
-      podcastName: podcastName.trim(),
-      youtubeUrl: youtubeUrl.trim(),
-      instagramUrl: instagramUrl.trim(),
-      tiktokUrl: tiktokUrl.trim(),
+      podcastName: derivedName,
+      youtubeUrl: ytUrl,
+      instagramUrl: igUrl,
+      tiktokUrl: tkUrl,
+      websiteUrl: webUrl,
       country: country.trim() || 'Brazil',
       state: state.trim(),
       city: city.trim() || 'Unspecified',
       language: language.trim() || 'Portuguese',
-      niche: niche.trim() || 'General',
+      niche: niche.trim() || 'Tech & AI',
       studioId: selectedStudioId !== 'not_now' ? selectedStudioId : undefined,
       studioName: studioNameResolved,
       hosts: formattedHosts,
       producers: formattedProducers,
-      submitterNote: submitterNote.trim(),
+      submitterNote: submitterNote.trim()
+        ? submitterNote.trim()
+        : `Sugerido via links: ${validLinks.join(', ')}`,
     });
 
+    // Reset form fields immediately so it's clean for the next suggestion
+    resetForm();
     setSubmittedSuccess(true);
-    setTimeout(() => {
-      setSubmittedSuccess(false);
-      onClose();
-    }, 2000);
   };
+
+  const handleCloseModal = () => {
+    setSubmittedSuccess(false);
+    resetForm();
+    onClose();
+  };
+
+  const hasAtLeastOneLink = links.some((l) => l.trim().length > 3);
 
   return (
     <div
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleCloseModal();
       }}
       className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
     >
@@ -233,21 +380,21 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
         ))}
       </datalist>
 
-      <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl my-8">
+      <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl my-8">
         
         {/* Header */}
-        <div className="bg-slate-950 p-6 border-b border-slate-800 flex items-center justify-between">
+        <div className="bg-slate-950 p-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-yellow-400/10 text-yellow-400 border border-yellow-500/30">
+            <div className="p-2.5 rounded-xl bg-yellow-400/10 text-yellow-400 border border-yellow-500/30 shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-white">Suggest a Podcast</h3>
-              <p className="text-xs text-slate-400">Propose a podcast or show for our global map directory & CRM</p>
+              <h3 className="font-bold text-lg text-white">Sugerir um Podcast</h3>
+              <p className="text-xs text-slate-400">Insira o link do podcast (YouTube, Instagram, Spotify, etc.)</p>
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleCloseModal}
             className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
           >
             <X className="w-5 h-5" />
@@ -256,417 +403,437 @@ export const SuggestPodcastModal: React.FC<SuggestPodcastModalProps> = ({
 
         {/* Form or Success View */}
         {submittedSuccess ? (
-          <div className="p-10 text-center space-y-3">
+          <div className="p-8 text-center space-y-4">
             <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto animate-bounce" />
-            <h4 className="font-bold text-xl text-white">Obrigado! / Thank You!</h4>
-            <p className="text-sm text-slate-300 max-w-md mx-auto">
-              Your podcast suggestion has been sent to our queue for approval!
-            </p>
+            <div>
+              <h4 className="font-bold text-xl text-white">Obrigado! / Thank You!</h4>
+              <p className="text-sm text-slate-300 max-w-md mx-auto mt-1">
+                Sua sugestão foi enviada com sucesso para a fila de aprovação!
+              </p>
+            </div>
+
+            <div className="pt-4 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSubmittedSuccess(false)}
+                className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-yellow-500/20 transition active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Sugerir Outro Podcast</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[78vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
             
-            {/* Podcast Name */}
-            <div>
-              <label className="block text-xs font-bold text-slate-200 mb-1">
-                Podcast Name / Nome do Podcast <span className="text-rose-400">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Flow Podcast, Inteligência Ltda, The Tech Breakdown"
-                value={podcastName}
-                onChange={(e) => setPodcastName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-            </div>
-
-            {/* Social Channels Section (YouTube, Instagram, TikTok) */}
-            <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-3">
-              <label className="block text-xs font-bold text-yellow-400 flex items-center gap-1.5">
-                <Video className="w-4 h-4 text-yellow-400" />
-                <span>Social Channels & Links (YouTube, Instagram, TikTok)</span>
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 flex items-center gap-1">
-                    <Youtube className="w-3 h-3 text-rose-500" /> YouTube Link
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://youtube.com/@..."
-                    value={youtubeUrl}
-                    onChange={(e) => setYoutubeUrl(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 flex items-center gap-1">
-                    <Instagram className="w-3 h-3 text-pink-500" /> Instagram Link
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://instagram.com/..."
-                    value={instagramUrl}
-                    onChange={(e) => setInstagramUrl(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 flex items-center gap-1">
-                    <Video className="w-3 h-3 text-cyan-400" /> TikTok Link
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://tiktok.com/@..."
-                    value={tiktokUrl}
-                    onChange={(e) => setTiktokUrl(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Category / Niche & Language Selectbox */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1">Niche Category</label>
-                <select
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                >
-                  <option value="Tech & AI">Tech & AI</option>
-                  <option value="Business & Entrepreneurship">Business & Entrepreneurship</option>
-                  <option value="Comedy & Society">Comedy & Society</option>
-                  <option value="Health & Science">Health & Science</option>
-                  <option value="Pop Culture & Entertainment">Pop Culture & Entertainment</option>
-                  <option value="True Crime">True Crime</option>
-                  <option value="Education & News">Education & News</option>
-                  <option value="Music & Culture">Music & Culture</option>
-                  <option value="Sports & Gaming">Sports & Gaming</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-200 mb-1 flex items-center gap-1">
-                  <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Main Language</span>
-                </label>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                >
-                  <option value="Portuguese">Portuguese (Português)</option>
-                  <option value="English">English</option>
-                  <option value="Spanish">Spanish (Español)</option>
-                  <option value="Italian">Italian (Italiano)</option>
-                  <option value="French">French (Français)</option>
-                  <option value="German">German (Deutsch)</option>
-                  <option value="Other">Other Language</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Studio Selection & Link */}
-            <div className="bg-slate-950/70 p-4 rounded-xl border border-amber-500/30 space-y-3">
+            {/* STEP 1: LINKS SECTION (FAST & SIMPLIFIED) */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-amber-400" />
-                  <span>Podcast Studio Facility</span>
+                <label className="block text-xs font-bold text-yellow-400 flex items-center gap-1.5">
+                  <LinkIcon className="w-4 h-4 text-yellow-400" />
+                  <span>Link(s) do Podcast / Canal / Perfil <span className="text-rose-400">*</span></span>
                 </label>
-                <span className="text-[10px] text-amber-300/80 italic">Optional</span>
+                <span className="text-[10px] text-slate-400">Obrigatório pelo menos 1 link</span>
               </div>
 
-              <div>
-                <select
-                  value={selectedStudioId}
-                  onChange={(e) => setSelectedStudioId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                >
-                  <option value="not_now">Studio Not Listed / Recorded Elsewhere / Studio Not Now</option>
-                  {existingStudios.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      🏢 {st.name} — {st.city}, {st.country}
-                    </option>
+              <div className="space-y-2.5">
+                {links.map((linkVal, idx) => {
+                  const meta = getLinkMeta(linkVal);
+                  const Icon = meta.icon;
+
+                  return (
+                    <div key={idx} className="relative flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400">
+                          <Icon className={`w-4 h-4 ${linkVal.trim() ? meta.color : 'text-slate-500'}`} />
+                        </div>
+                        <input
+                          type="url"
+                          required={idx === 0}
+                          placeholder="Ex: https://youtube.com/@flowpodcast ou https://instagram.com/..."
+                          value={linkVal}
+                          onChange={(e) => handleLinkChange(idx, e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-20 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        />
+                        {linkVal.trim().length > 3 && (
+                          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 ${meta.color}`}>
+                            {meta.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {links.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveLink(idx)}
+                          className="p-2 rounded-xl bg-slate-950 text-slate-500 hover:text-rose-400 border border-slate-800 transition"
+                          title="Remover Link"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add Extra Link Button */}
+              <button
+                type="button"
+                onClick={handleAddLink}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-yellow-400 hover:text-yellow-300 transition py-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Adicionar outro link</span>
+              </button>
+
+              {/* Duplicate Warning Card */}
+              {duplicatesInfo.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-amber-950/60 border border-amber-500/50 text-amber-200 text-xs space-y-1.5 animate-in fade-in">
+                  <div className="flex items-center gap-2 font-bold text-amber-300">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Atenção: Link já encontrado no banco de dados!</span>
+                  </div>
+                  {duplicatesInfo.map((dup, dIdx) => (
+                    <p key={dIdx} className="text-[11px] text-amber-200/90 pl-6">
+                      • O link <span className="font-mono underline text-white">{dup.link}</span> já está registrado como <strong className="text-yellow-300">"{dup.matchedName}"</strong> ({dup.type === 'podcast' ? 'No diretório' : 'Em análise'}).
+                    </p>
                   ))}
-                  <option value="custom">✍️ Type Custom Studio Name...</option>
-                </select>
-              </div>
-
-              {selectedStudioId === 'custom' && (
-                <input
-                  type="text"
-                  placeholder="Type Studio Name..."
-                  value={customStudioName}
-                  onChange={(e) => setCustomStudioName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
+                </div>
               )}
             </div>
 
-            {/* Single-line Location (Google Maps Integration Line) */}
-            <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-2">
-              <label className="block text-xs font-bold text-slate-200 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-rose-400" />
-                  <span>Podcast Location (Google Maps Integration Line)</span>
+            {/* STEP 2: OPTIONAL COLLAPSIBLE SECTION (EXPAND / COLLAPSE) */}
+            <div className="border-t border-slate-800/80 pt-4">
+              <button
+                type="button"
+                onClick={() => setIsMoreDetailsOpen(!isMoreDetailsOpen)}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 text-slate-300 hover:text-white font-bold text-xs flex items-center justify-between transition"
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-yellow-400" />
+                  <span>{isMoreDetailsOpen ? 'Ocultar detalhes adicionais' : '➕ Adicionar mais detalhes (opcional)'}</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono">City, State, Country</span>
-              </label>
+                {isMoreDetailsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
 
-              <LocationAutocomplete
-                value={singleLocationInput}
-                onChange={handleLocationSelect}
-                placeholder="Type a city e.g. New York, Milano, São Paulo..."
-              />
+              {isMoreDetailsOpen && (
+                <div className="space-y-4 pt-4 animate-in slide-in-from-top-2 duration-200">
+                  
+                  {/* Podcast Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-200 mb-1">
+                      Nome do Podcast (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Flow Podcast, Inteligência Ltda, Podpah"
+                      value={podcastName}
+                      onChange={(e) => setPodcastName(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
 
-              <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-0.5 font-mono">
-                <span>City: <strong className="text-white">{city}</strong></span>
-                <span>State: <strong className="text-white">{state || 'N/A'}</strong></span>
-                <span>Country: <strong className="text-white">{country}</strong></span>
-              </div>
-            </div>
-
-            {/* Multiple Hosts Section */}
-            <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-indigo-400" />
-                  <span>Hosts ({hosts.length})</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddHost}
-                  className="px-2.5 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/50 text-[11px] font-bold flex items-center gap-1 transition"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Host</span>
-                </button>
-              </div>
-
-              {hosts.map((host, index) => (
-                <div key={index} className="bg-slate-900 p-3.5 rounded-xl border border-slate-800/80 space-y-2.5 relative">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-300">
-                      Host #{index + 1}
-                    </span>
-                    {hosts.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveHost(index)}
-                        className="text-slate-500 hover:text-rose-400 transition p-1"
-                        title="Remove Host"
+                  {/* Niche & Language */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-200 mb-1">Categoria / Categoria</label>
+                      <select
+                        value={niche}
+                        onChange={(e) => setNiche(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                        <option value="Tech & AI">Tech & AI</option>
+                        <option value="Business & Entrepreneurship">Business & Entrepreneurship</option>
+                        <option value="Comedy">Comedy</option>
+                        <option value="Society & Local">Society & Local</option>
+                        <option value="Health & Science">Health & Science</option>
+                        <option value="Pop Culture & Entertainment">Pop Culture & Entertainment</option>
+                        <option value="True Crime">True Crime</option>
+                        <option value="Education & News">Education & News</option>
+                        <option value="Music & Culture">Music & Culture</option>
+                        <option value="Sports & Gaming">Sports & Gaming</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-200 mb-1 flex items-center gap-1">
+                        <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Idioma Principal</span>
+                      </label>
+                      <select
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      >
+                        <option value="Portuguese">Português (Brasil)</option>
+                        <option value="English">Inglês</option>
+                        <option value="Spanish">Espanhol</option>
+                        <option value="Italian">Italiano</option>
+                        <option value="French">Francês</option>
+                        <option value="German">Alemão</option>
+                        <option value="Other">Outro</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Studio Facility */}
+                  <div className="bg-slate-950/70 p-3.5 rounded-xl border border-amber-500/30 space-y-2">
+                    <label className="block text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-amber-400" />
+                      <span>Estúdio de Gravação</span>
+                    </label>
+
+                    <select
+                      value={selectedStudioId}
+                      onChange={(e) => setSelectedStudioId(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                      <option value="not_now">Não listado / Estúdio Próprio / Outro</option>
+                      {existingStudios.map((st) => (
+                        <option key={st.id} value={st.id}>
+                          🏢 {st.name} — {st.city}, {st.country}
+                        </option>
+                      ))}
+                      <option value="custom">✍️ Digitar nome do estúdio...</option>
+                    </select>
+
+                    {selectedStudioId === 'custom' && (
+                      <input
+                        type="text"
+                        placeholder="Nome do Estúdio..."
+                        value={customStudioName}
+                        onChange={(e) => setCustomStudioName(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400 mt-2"
+                      />
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <input
-                        type="text"
-                        list="suggest-contacts-autocomplete"
-                        placeholder="Host Name (Autocomplete)"
-                        value={host.name}
-                        onChange={(e) => handleHostNameChange(index, e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="WhatsApp / Phone"
-                        value={host.whatsapp}
-                        onChange={(e) => {
-                          const updated = [...hosts];
-                          updated[index].whatsapp = e.target.value;
-                          setHosts(updated);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="email"
-                        placeholder="E-mail"
-                        value={host.email}
-                        onChange={(e) => {
-                          const updated = [...hosts];
-                          updated[index].email = e.target.value;
-                          setHosts(updated);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Instagram (@handle or link)"
-                        value={host.instagram}
-                        onChange={(e) => {
-                          const updated = [...hosts];
-                          updated[index].instagram = e.target.value;
-                          setHosts(updated);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <input
-                        type="text"
-                        placeholder="LinkedIn Profile URL"
-                        value={host.linkedin}
-                        onChange={(e) => {
-                          const updated = [...hosts];
-                          updated[index].linkedin = e.target.value;
-                          setHosts(updated);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
+                  {/* Location Autocomplete */}
+                  <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                    <label className="block text-xs font-bold text-slate-200 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-rose-400" />
+                        <span>Localização (Cidade, Estado, País)</span>
+                      </span>
+                    </label>
+
+                    <LocationAutocomplete
+                      value={singleLocationInput}
+                      onChange={handleLocationSelect}
+                      placeholder="Digite a cidade e.g. São Paulo, Rio de Janeiro, Milano..."
+                    />
                   </div>
-                </div>
-              ))}
-            </div>
 
-            {/* Multiple Producers Section */}
-            <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-                  <Building className="w-4 h-4 text-cyan-400" />
-                  <span>Producers ({producers.length})</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddProducer}
-                  className="px-2.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/50 text-[11px] font-bold flex items-center gap-1 transition"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Producer</span>
-                </button>
-              </div>
-
-              {producers.map((producer, index) => (
-                <div key={index} className="bg-slate-900 p-3.5 rounded-xl border border-slate-800/80 space-y-2.5 relative">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-300">
-                      Producer #{index + 1}
-                    </span>
-                    {producers.length > 1 && (
+                  {/* Hosts */}
+                  <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                        <User className="w-4 h-4 text-indigo-400" />
+                        <span>Hosts / Apresentadores ({hosts.length})</span>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => handleRemoveProducer(index)}
-                        className="text-slate-500 hover:text-rose-400 transition p-1"
-                        title="Remove Producer"
+                        onClick={handleAddHost}
+                        className="px-2 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/50 text-[11px] font-bold flex items-center gap-1 transition"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Adicionar Host</span>
                       </button>
-                    )}
+                    </div>
+
+                    {hosts.map((host, index) => (
+                      <div key={index} className="bg-slate-900 p-3 rounded-xl border border-slate-800/80 space-y-2 relative">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-300">Host #{index + 1}</span>
+                          {hosts.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveHost(index)}
+                              className="text-slate-500 hover:text-rose-400 transition p-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            list="suggest-contacts-autocomplete"
+                            placeholder="Nome do Host"
+                            value={host.name}
+                            onChange={(e) => handleHostNameChange(index, e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                          />
+                          <input
+                            type="text"
+                            placeholder="WhatsApp / Telefone"
+                            value={host.whatsapp}
+                            onChange={(e) => {
+                              const updated = [...hosts];
+                              updated[index].whatsapp = e.target.value;
+                              setHosts(updated);
+                            }}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                          />
+                          <input
+                            type="email"
+                            placeholder="E-mail"
+                            value={host.email}
+                            onChange={(e) => {
+                              const updated = [...hosts];
+                              updated[index].email = e.target.value;
+                              setHosts(updated);
+                            }}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Instagram (@handle ou link)"
+                            value={host.instagram}
+                            onChange={(e) => {
+                              const updated = [...hosts];
+                              updated[index].instagram = e.target.value;
+                              setHosts(updated);
+                            }}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <input
-                        type="text"
-                        list="suggest-contacts-autocomplete"
-                        placeholder="Producer Name (Autocomplete)"
-                        value={producer.name}
-                        onChange={(e) => handleProducerNameChange(index, e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
+                  {/* Producers */}
+                  <div className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+                        <Building className="w-4 h-4 text-cyan-400" />
+                        <span>Produtores ({producers.length})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddProducer}
+                        className="px-2 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/50 text-[11px] font-bold flex items-center gap-1 transition"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Adicionar Produtor</span>
+                      </button>
                     </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="WhatsApp / Phone"
-                        value={producer.whatsapp}
-                        onChange={(e) => {
-                          const updated = [...producers];
-                          updated[index].whatsapp = e.target.value;
-                          setProducers(updated);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="email"
-                        placeholder="E-mail"
-                        value={producer.email}
-                        onChange={(e) => {
-                          const updated = [...producers];
-                          updated[index].email = e.target.value;
-                          setProducers(updated);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Instagram Handle / Link"
-                        value={producer.instagram}
-                        onChange={(e) => {
-                          const updated = [...producers];
-                          updated[index].instagram = e.target.value;
-                          setProducers(updated);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <input
-                        type="text"
-                        placeholder="LinkedIn Profile URL"
-                        value={producer.linkedin}
-                        onChange={(e) => {
-                          const updated = [...producers];
-                          updated[index].linkedin = e.target.value;
-                          setProducers(updated);
-                        }}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
-                      />
-                    </div>
+
+                    {producers.map((producer, index) => (
+                      <div key={index} className="bg-slate-900 p-3 rounded-xl border border-slate-800/80 space-y-2 relative">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-300">Produtor #{index + 1}</span>
+                          {producers.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProducer(index)}
+                              className="text-slate-500 hover:text-rose-400 transition p-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            list="suggest-contacts-autocomplete"
+                            placeholder="Nome do Produtor"
+                            value={producer.name}
+                            onChange={(e) => handleProducerNameChange(index, e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                          />
+                          <input
+                            type="text"
+                            placeholder="WhatsApp / Telefone"
+                            value={producer.whatsapp}
+                            onChange={(e) => {
+                              const updated = [...producers];
+                              updated[index].whatsapp = e.target.value;
+                              setProducers(updated);
+                            }}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                          />
+                          <input
+                            type="email"
+                            placeholder="E-mail"
+                            value={producer.email}
+                            onChange={(e) => {
+                              const updated = [...producers];
+                              updated[index].email = e.target.value;
+                              setProducers(updated);
+                            }}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Instagram"
+                            value={producer.instagram}
+                            onChange={(e) => {
+                              const updated = [...producers];
+                              updated[index].instagram = e.target.value;
+                              setProducers(updated);
+                            }}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
+
+                  {/* Note / Message */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-200 mb-1">
+                      Observação / Recado para a Equipe
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Algum detalhe adicional que gostaria de nos contar?"
+                      value={submitterNote}
+                      onChange={(e) => setSubmitterNote(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+
                 </div>
-              ))}
-            </div>
-
-            {/* Note / Message */}
-            <div>
-              <label className="block text-xs font-bold text-slate-200 mb-1">
-                Note / Message for Admin
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Why should this podcast be added to the map directory?"
-                value={submitterNote}
-                onChange={(e) => setSubmitterNote(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
+              )}
             </div>
 
             {/* Submit Buttons */}
-            <div className="pt-2 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold text-xs rounded-xl shadow-lg transition active:scale-95"
-              >
-                Submit Suggestion
-              </button>
+            <div className="pt-3 flex items-center justify-between border-t border-slate-800/80">
+              <span className="text-[11px] text-slate-400">
+                {hasAtLeastOneLink ? 'Pronto para enviar!' : 'Preencha o link acima para enviar'}
+              </span>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!hasAtLeastOneLink}
+                  className={`px-5 py-2 font-extrabold text-xs rounded-xl shadow-lg transition active:scale-95 ${
+                    hasAtLeastOneLink
+                      ? 'bg-yellow-400 hover:bg-yellow-300 text-black shadow-yellow-500/20 cursor-pointer'
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  Enviar Sugestão
+                </button>
+              </div>
             </div>
 
           </form>

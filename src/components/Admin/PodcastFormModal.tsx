@@ -514,7 +514,8 @@ export const PodcastFormModal: React.FC<PodcastFormModalProps> = ({
               >
                 <option value="Tech & AI">Tech & AI</option>
                 <option value="Business & Entrepreneurship">Business & Entrepreneurship</option>
-                <option value="Comedy & Society">Comedy & Society</option>
+                <option value="Comedy">Comedy</option>
+                <option value="Society & Local">Society & Local</option>
                 <option value="Health & Science">Health & Science</option>
                 <option value="Pop Culture & Entertainment">Pop Culture & Entertainment</option>
                 <option value="True Crime">True Crime</option>

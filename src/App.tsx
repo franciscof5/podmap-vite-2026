@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { RefreshCw, CheckCircle2, AlertCircle, Lock, Unlock, RotateCcw, Database } from 'lucide-react';
 import {
   Podcast,
   PodcastSuggestion,
@@ -451,13 +451,6 @@ export default function App() {
       {/* Top Navbar */}
       <Navbar
         isAdmin={isAdmin}
-        onToggleAdminModal={() => {
-          if (isAdmin) {
-            setIsAdmin(false); // Exit admin mode
-          } else {
-            setIsAdminAuthOpen(true);
-          }
-        }}
         onOpenSuggestModal={() => setIsSuggestModalOpen(true)}
         onOpenAddPodcastModal={() => {
           setEditingPodcast(null);
@@ -468,10 +461,6 @@ export default function App() {
         pendingSuggestionsCount={pendingSuggestionsCount}
         currentView={currentView}
         onViewChange={(v) => setCurrentView(v)}
-        searchQuery={filters.searchQuery}
-        onSearchChange={(q) => setFilters((prev) => ({ ...prev, searchQuery: q }))}
-        onResetData={handleResetData}
-        isPbSeeded={isPbSeeded}
       />
 
       {/* Main Body */}
@@ -578,13 +567,57 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-300">PodMap CRM</span>
             <span>— Global Podcast Discovery & Secret Pipeline</span>
           </div>
-          <div className="text-slate-600">
-            {podcasts.length} podcasts indexed across {new Set(podcasts.map((p) => p.country)).size} countries
+          
+          <div className="flex items-center gap-3">
+            <span className="text-slate-600 hidden md:inline">
+              {podcasts.length} podcasts indexed across {new Set(podcasts.map((p) => p.country)).size} countries
+            </span>
+
+            {/* Seed PocketBase Button (Admin Only) */}
+            {isAdmin && (
+              <button
+                onClick={handleResetData}
+                className="px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-yellow-400 border border-zinc-800 hover:border-yellow-500/40 text-xs font-semibold flex items-center gap-1.5 transition"
+                title="Reset/Sync PocketBase Data"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Sync Seed PB</span>
+              </button>
+            )}
+
+            {/* CRM Login / Exit Button */}
+            <button
+              onClick={() => {
+                if (isAdmin) {
+                  setIsAdmin(false);
+                } else {
+                  setIsAdminAuthOpen(true);
+                }
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                isAdmin
+                  ? 'bg-amber-950/40 border-yellow-500/60 text-yellow-300 hover:bg-amber-900/60'
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-yellow-500/50 hover:text-white'
+              }`}
+              title={isAdmin ? 'Sair do Modo Admin' : 'CRM Login'}
+            >
+              {isAdmin ? (
+                <>
+                  <Unlock className="w-3.5 h-3.5 text-yellow-400" />
+                  <span>Sair do Admin</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>CRM Login</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </footer>
@@ -613,6 +646,7 @@ export default function App() {
         onSubmitSuggestion={handleSubmitSuggestion}
         existingStudios={podcasts.filter((p) => p.entityType === 'studio')}
         allPodcasts={podcasts}
+        existingSuggestions={suggestions}
       />
 
       {/* Admin Authentication PIN Modal */}

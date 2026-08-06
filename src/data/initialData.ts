@@ -14,7 +14,7 @@ export const INITIAL_PODCASTS: Podcast[] = [
     latitude: 30.2672,
     longitude: -97.7431,
     language: 'English',
-    niche: 'Comedy & Society',
+    niche: 'Comedy',
     producers: [
       { id: 'prod-1', name: 'Young Jamie Vernon', email: 'jamie@joerogan.com', phone: '+1 (512) 555-0199', role: 'Head Producer & Audio Engineer' },
     ],
@@ -600,7 +600,7 @@ export const INITIAL_SUGGESTIONS: PodcastSuggestion[] = [
     state: 'CDMX',
     city: 'Mexico City',
     language: 'Spanish',
-    niche: 'Comedy & Society',
+    niche: 'Comedy',
     producers: [
       { id: 'sp-1', name: 'Gabo', email: 'contacto@lacotorrisa.mx', phone: '+52 55 1234 5678' }
     ],

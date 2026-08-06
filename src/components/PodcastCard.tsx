@@ -1,7 +1,7 @@
 import React from 'react';
 import { Podcast, UserLocation } from '../types';
-import { CRM_STAGE_CONFIG } from '../utils/geo';
-import { ArrowUpRight, MessageSquare } from 'lucide-react';
+import { CRM_STAGE_CONFIG, calculateDistanceKm } from '../utils/geo';
+import { ArrowUpRight, MessageSquare, MapPin } from 'lucide-react';
 
 interface PodcastCardProps {
   podcast: Podcast;
@@ -16,11 +16,19 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
   podcast,
   isSelected,
   onSelect,
+  userLocation,
   isAdmin,
   onStageChange,
 }) => {
   const isStudio = podcast.entityType === 'studio';
   const stageConfig = CRM_STAGE_CONFIG[podcast.stage] || CRM_STAGE_CONFIG.notknow;
+
+  const distanceKm = React.useMemo(() => {
+    if (!userLocation || typeof podcast.latitude !== 'number' || typeof podcast.longitude !== 'number') {
+      return null;
+    }
+    return calculateDistanceKm(userLocation.latitude, userLocation.longitude, podcast.latitude, podcast.longitude);
+  }, [userLocation, podcast.latitude, podcast.longitude]);
 
   return (
     <div
@@ -48,7 +56,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
           />
         </div>
 
-        {/* Title + Niche / StudioType / Topics Temas */}
+        {/* Title + Niche / StudioType / Topics Temas / Location & Distance */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1 flex-wrap">
           <h3 className="font-extrabold text-xs sm:text-sm text-zinc-100 group-hover:text-yellow-400 transition truncate shrink-0 max-w-[180px] sm:max-w-[280px]">
             {podcast.name}
@@ -65,6 +73,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
             >
               {isStudio ? `Studio • ${podcast.studioType || 'Facility'}` : podcast.niche}
             </span>
+
             {podcast.topics && podcast.topics.length > 0 && (
               podcast.topics.slice(0, 2).map((topic, i) => (
                 <span
@@ -75,6 +84,17 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                 </span>
               ))
             )}
+
+            {/* City & Subtle Distance Badge */}
+            <span className="text-[10px] text-zinc-400/90 font-medium flex items-center gap-1 shrink-0 ml-1">
+              <MapPin className="w-3 h-3 text-zinc-500 shrink-0" />
+              <span>{podcast.city ? `${podcast.city}, ${podcast.country}` : podcast.country}</span>
+              {distanceKm !== null && (
+                <span className="text-zinc-500 font-semibold text-[9.5px]">
+                  • {distanceKm < 1000 ? `${distanceKm} km` : `${(distanceKm / 1000).toFixed(1)}k km`}
+                </span>
+              )}
+            </span>
           </div>
         </div>
       </div>

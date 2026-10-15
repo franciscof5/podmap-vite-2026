@@ -108,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </>
             ) : (
-              /* Public PodCut Style Button */
+              /* Public ByCuts Style Button */
               <button
                 onClick={onOpenSuggestModal}
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-black text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-yellow-500/20 transition active:scale-95"

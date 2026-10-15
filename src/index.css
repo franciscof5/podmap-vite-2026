@@ -7,7 +7,7 @@ body {
   color: #f4f4f5;
 }
 
-/* Ambient Yellow PodCut Glow Effect */
+/* Ambient Yellow ByCuts Glow Effect */
 .podcut-ambient-glow {
   background: radial-gradient(circle at 50% -20%, rgba(250, 204, 21, 0.12) 0%, rgba(234, 179, 8, 0.03) 45%, rgba(12, 12, 14, 0) 80%);
 }
@@ -44,7 +44,7 @@ body {
   animation: user-pulse-yellow 2s infinite;
 }
 
-/* Custom Podcast Pin Style (PodCut Yellow Glow) */
+/* Custom Podcast Pin Style (ByCuts Yellow Glow) */
 .podcast-map-pin {
   display: flex;
   align-items: center;
@@ -60,7 +60,7 @@ body {
   z-index: 999 !important;
 }
 
-/* Custom Popup Styling for Dark PodCut Theme */
+/* Custom Popup Styling for Dark ByCuts Theme */
 .leaflet-popup-content-wrapper {
   padding: 0;
   border-radius: 16px;

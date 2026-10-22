@@ -125,7 +125,7 @@ export async function authenticateAdmin(): Promise<boolean> {
 }
 
 /**
- * Ensure PocketBase collections 'podcasts' and 'suggestions' exist, or create/update them via REST API
+ * Ensure PocketBase collections 'podmap_podcasts' and 'sponsor_suggestions' exist, or create/update them via REST API
  */
 const PODCAST_COLLECTION_FIELDS = [
   { name: 'original_id', type: 'text' },
@@ -278,8 +278,8 @@ export async function ensureCollectionsExist(force = false): Promise<void> {
     throw new Error('PocketBase Admin authentication failed. Check credentials or network.');
   }
 
-  await createOrEnsureCollection('podcasts', PODCAST_COLLECTION_FIELDS);
-  await createOrEnsureCollection('suggestions', SUGGESTION_COLLECTION_FIELDS);
+  await createOrEnsureCollection('podmap_podcasts', PODCAST_COLLECTION_FIELDS);
+  await createOrEnsureCollection('sponsor_suggestions', SUGGESTION_COLLECTION_FIELDS);
   isCollectionsEnsured = true;
 }
 
@@ -362,12 +362,12 @@ export async function fetchPodcastsFromPB(): Promise<Podcast[] | null> {
   const tryGetRecords = async (sortField: string) => {
     try {
       pb.baseUrl = baseUrl;
-      return await pb.collection('podcasts').getFullList({
+      return await pb.collection('podmap_podcasts').getFullList({
         sort: sortField,
         requestKey: null,
       });
     } catch {
-      const res = await fetch(`${baseUrl}/api/collections/podcasts/records?page=1&perPage=1000&skipTotal=1${sortField ? `&sort=${sortField}` : ''}`, {
+      const res = await fetch(`${baseUrl}/api/collections/podmap_podcasts/records?page=1&perPage=1000&skipTotal=1${sortField ? `&sort=${sortField}` : ''}`, {
         headers: { 'Cache-Control': 'no-cache' },
       });
       if (res.ok) {
@@ -392,9 +392,9 @@ export async function fetchPodcastsFromPB(): Promise<Podcast[] | null> {
     try {
       await authenticateAdmin();
       try {
-        records = await pb.collection('podcasts').getFullList({ sort: '-createdAt', requestKey: null });
+        records = await pb.collection('podmap_podcasts').getFullList({ sort: '-createdAt', requestKey: null });
       } catch {
-        records = await pb.collection('podcasts').getFullList({ sort: '-created', requestKey: null });
+        records = await pb.collection('podmap_podcasts').getFullList({ sort: '-created', requestKey: null });
       }
     } catch (err3) {
       console.warn('Failed to fetch podcasts from PocketBase:', err3);
@@ -479,20 +479,20 @@ export async function savePodcastToPB(podcast: Podcast): Promise<boolean> {
     // Find existing record by original_id or id
     let existingRecord: any = null;
     try {
-      existingRecord = await pb.collection('podcasts').getFirstListItem(`original_id="${podcast.id}"`);
+      existingRecord = await pb.collection('podmap_podcasts').getFirstListItem(`original_id="${podcast.id}"`);
     } catch {
       // Not found by original_id, try by id
       try {
-        existingRecord = await pb.collection('podcasts').getOne(podcast.id);
+        existingRecord = await pb.collection('podmap_podcasts').getOne(podcast.id);
       } catch {
         existingRecord = null;
       }
     }
 
     if (existingRecord) {
-      await pb.collection('podcasts').update(existingRecord.id, payload);
+      await pb.collection('podmap_podcasts').update(existingRecord.id, payload);
     } else {
-      await pb.collection('podcasts').create(payload);
+      await pb.collection('podmap_podcasts').create(payload);
     }
     return true;
   } catch (err: any) {
@@ -516,9 +516,9 @@ export async function bulkSavePodcastsToPB(podcasts: Podcast[]): Promise<void> {
 export async function deletePodcastFromPB(podcastId: string): Promise<boolean> {
   try {
     await authenticateAdmin();
-    const existingRecord = await pb.collection('podcasts').getFirstListItem(`original_id="${podcastId}"`);
+    const existingRecord = await pb.collection('podmap_podcasts').getFirstListItem(`original_id="${podcastId}"`);
     if (existingRecord) {
-      await pb.collection('podcasts').delete(existingRecord.id);
+      await pb.collection('podmap_podcasts').delete(existingRecord.id);
     }
     return true;
   } catch (err) {
@@ -539,12 +539,12 @@ export async function fetchSuggestionsFromPB(): Promise<PodcastSuggestion[] | nu
   const tryGetSuggestions = async (sortField: string) => {
     try {
       pb.baseUrl = baseUrl;
-      return await pb.collection('suggestions').getFullList({
+      return await pb.collection('sponsor_suggestions').getFullList({
         sort: sortField,
         requestKey: null,
       });
     } catch {
-      const res = await fetch(`${baseUrl}/api/collections/suggestions/records?page=1&perPage=1000&skipTotal=1${sortField ? `&sort=${sortField}` : ''}`, {
+      const res = await fetch(`${baseUrl}/api/collections/sponsor_suggestions/records?page=1&perPage=1000&skipTotal=1${sortField ? `&sort=${sortField}` : ''}`, {
         headers: { 'Cache-Control': 'no-cache' },
       });
       if (res.ok) {
@@ -569,9 +569,9 @@ export async function fetchSuggestionsFromPB(): Promise<PodcastSuggestion[] | nu
     try {
       await authenticateAdmin();
       try {
-        records = await pb.collection('suggestions').getFullList({ sort: '-createdAt', requestKey: null });
+        records = await pb.collection('sponsor_suggestions').getFullList({ sort: '-createdAt', requestKey: null });
       } catch {
-        records = await pb.collection('suggestions').getFullList({ sort: '-created', requestKey: null });
+        records = await pb.collection('sponsor_suggestions').getFullList({ sort: '-created', requestKey: null });
       }
     } catch (err3) {
       console.warn('Failed to fetch suggestions from PocketBase:', err3);
@@ -645,15 +645,15 @@ export async function saveSuggestionToPB(suggestion: PodcastSuggestion): Promise
 
     let existingRecord: any = null;
     try {
-      existingRecord = await pb.collection('suggestions').getFirstListItem(`original_id="${suggestion.id}"`);
+      existingRecord = await pb.collection('sponsor_suggestions').getFirstListItem(`original_id="${suggestion.id}"`);
     } catch {
       existingRecord = null;
     }
 
     if (existingRecord) {
-      await pb.collection('suggestions').update(existingRecord.id, payload);
+      await pb.collection('sponsor_suggestions').update(existingRecord.id, payload);
     } else {
-      await pb.collection('suggestions').create(payload);
+      await pb.collection('sponsor_suggestions').create(payload);
     }
     return true;
   } catch (err) {
@@ -677,9 +677,9 @@ export async function bulkSaveSuggestionsToPB(suggestions: PodcastSuggestion[]):
 export async function deleteSuggestionFromPB(suggestionId: string): Promise<boolean> {
   try {
     await authenticateAdmin();
-    const existingRecord = await pb.collection('suggestions').getFirstListItem(`original_id="${suggestionId}"`);
+    const existingRecord = await pb.collection('sponsor_suggestions').getFirstListItem(`original_id="${suggestionId}"`);
     if (existingRecord) {
-      await pb.collection('suggestions').delete(existingRecord.id);
+      await pb.collection('sponsor_suggestions').delete(existingRecord.id);
     }
     return true;
   } catch (err) {
@@ -734,7 +734,7 @@ export async function runPocketBaseDiagnostics(): Promise<PbDiagnosticStep[]> {
 
   // Step 2: Public API Rule (podcasts)
   try {
-    const res = await fetch(`${url}/api/collections/podcasts/records?perPage=1`, {
+    const res = await fetch(`${url}/api/collections/podmap_podcasts/records?perPage=1`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
     });
@@ -756,7 +756,7 @@ export async function runPocketBaseDiagnostics(): Promise<PbDiagnosticStep[]> {
       steps.push({
         name: 'Regra de API Pública (podcasts)',
         status: 'warning',
-        message: `A coleção 'podcasts' ainda não existe no PocketBase. Execute o Seed.`,
+        message: `A coleção 'podmap_podcasts' ainda não existe no PocketBase. Execute o Seed.`,
       });
     } else {
       steps.push({
